@@ -185,7 +185,13 @@ const MODEL = {
               "id": "OE-06",
               "name": "OE-06 OSR System",
               "type": "Entity",
-              "desc": "The rover itself — the system under study."
+              "desc": "The rover itself — the system under study. In Arcadia, OEs do not have vertical realization links; instead OE-06 is decomposed via Operational Activities into System Functions. OE-06 participates in all OActs (OAct-01 through OAct-04) and is realized at SA layer by the System boundary (SF-01 through SF-07 collectively).",
+              "participatesIn": [
+                "OAct-01",
+                "OAct-02",
+                "OAct-03",
+                "OAct-04"
+              ]
             },
             {
               "id": "OE-07",

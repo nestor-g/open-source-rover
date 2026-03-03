@@ -54,6 +54,12 @@ nav:
       - EPBS Architecture:
           - Overview: systems_engineering/05_epbs/README.md
           - Configuration Items: systems_engineering/05_epbs/configuration_items.md
+      - Safety Analysis:
+          - Overview: systems_engineering/06_safety/README.md
+          - Hazard Log: systems_engineering/06_safety/hazard_log.md
+          - FMEA: systems_engineering/06_safety/fmea_system.md
+          - Fault Trees: systems_engineering/06_safety/fta.md
+          - Scenarios: systems_engineering/06_safety/scenarios/README.md
       - Requirements Register: systems_engineering/requirements_register.md
       - Traceability Diagrams: systems_engineering/traceability.md
       - Capella Model: systems_engineering/MBSE_workspace/README.md
