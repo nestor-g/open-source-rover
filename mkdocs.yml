@@ -55,6 +55,7 @@ nav:
           - Overview: systems_engineering/05_epbs/README.md
           - Configuration Items: systems_engineering/05_epbs/configuration_items.md
       - Requirements Register: systems_engineering/requirements_register.md
+      - Traceability Diagrams: systems_engineering/traceability.md
       - Capella Model: systems_engineering/MBSE_workspace/README.md
   - OSR@JPL: https://jplopensourcerover.com/
 
@@ -66,6 +67,14 @@ plugins:
 markdown_extensions:
   - pymdownx.emoji:
       emoji_generator: !!python/name:pymdownx.emoji.to_alt
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js
 
 theme:
   name: readthedocs

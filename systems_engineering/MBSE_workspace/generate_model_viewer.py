@@ -467,6 +467,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
 <link rel="stylesheet"
   href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<script src="https://cdn.jsdelivr.net/npm/cytoscape@3.29.2/dist/cytoscape.min.js"></script>
 <style>
   :root { --tree-indent: 1.25rem; }
   body { font-family: system-ui, -apple-system, sans-serif; background: #f8f9fa; }
@@ -497,6 +498,23 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   .stat-badge { font-size: .65rem; border-radius: 10px; padding: 1px 7px; }
   pre { background: #f1f3f5; border-radius: 6px; padding: .5rem .75rem;
         font-size: .78rem; white-space: pre-wrap; }
+  /* ── Graph overlay ── */
+  #graphOverlay { display:none; position:fixed; inset:0; z-index:1000;
+                  background:rgba(10,10,20,.88); }
+  #graphPanel { position:absolute; inset:12px; background:#1a1b2e;
+                border-radius:14px; overflow:hidden; display:flex;
+                flex-direction:column; box-shadow:0 8px 40px rgba(0,0,0,.6); }
+  #graphHeader { background:#16213e; padding:8px 14px; display:flex;
+                 align-items:center; gap:10px; border-bottom:1px solid #0f3460;
+                 flex-shrink:0; }
+  #graphHeader h6 { color:#e0e0ff; margin:0; font-size:.85rem; }
+  #cyContainer { flex:1; background:#1a1b2e; }
+  #graphLegend { display:flex; gap:6px; flex-wrap:wrap; }
+  #graphLayerFilter { background:#0f3460; color:#cce; border-color:#0f3460;
+                      font-size:.75rem; padding:2px 6px; }
+  #graphInfo { position:absolute; bottom:16px; left:50%; transform:translateX(-50%);
+               background:rgba(255,255,255,.08); color:#aab; font-size:.72rem;
+               padding:4px 14px; border-radius:20px; pointer-events:none; }
 </style>
 </head>
 <body>
@@ -509,7 +527,13 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       <h5 class="mb-0 fw-bold">OSR MBSE Model Viewer</h5>
       <small class="text-muted">Open Source Rover — Arcadia/Capella 6.1.0</small>
     </div>
-    <div class="ms-auto d-flex gap-2" id="statsBar"></div>
+    <div class="ms-auto d-flex gap-2 align-items-center">
+      <div id="statsBar" class="d-flex gap-2"></div>
+      <button class="btn btn-sm btn-outline-secondary ms-1" onclick="openGraph()"
+              title="Open traceability graph view">
+        <i class="bi bi-diagram-2-fill"></i> Graph
+      </button>
+    </div>
   </div>
   <!-- Layer pills -->
   <div class="d-flex gap-2 flex-wrap" id="layerNav"></div>
@@ -538,6 +562,31 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       <p class="mt-2">Select an element from the tree to see details,<br>
          requirements, and cross-layer traceability.</p>
     </div>
+  </div>
+</div>
+
+<!-- ── Graph overlay ──────────────────────────────────────────────────── -->
+<div id="graphOverlay">
+  <div id="graphPanel">
+    <div id="graphHeader">
+      <h6>🛸 OSR MBSE Traceability Graph</h6>
+      <div id="graphLegend"></div>
+      <div class="ms-auto d-flex gap-2 align-items-center">
+        <label style="color:#99aacc;font-size:.75rem">Layer:</label>
+        <select id="graphLayerFilter" class="form-select form-select-sm">
+          <option value="all">All layers</option>
+        </select>
+        <label style="color:#99aacc;font-size:.75rem">Show:</label>
+        <select id="graphDepthFilter" class="form-select form-select-sm"
+                style="background:#0f3460;color:#cce;border-color:#0f3460;font-size:.75rem;padding:2px 6px">
+          <option value="top">Top-level only</option>
+          <option value="all">All elements</option>
+        </select>
+        <button class="btn btn-sm btn-outline-light" onclick="closeGraph()">✕ Close</button>
+      </div>
+    </div>
+    <div id="cyContainer"></div>
+    <div id="graphInfo">Scroll to zoom · Drag to pan · Click a node to open it in the detail view</div>
   </div>
 </div>
 
@@ -837,6 +886,262 @@ document.getElementById('searchInput').addEventListener('input', function() {
     dragging = false;
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
+  });
+})();
+
+// ── Graph view ───────────────────────────────────────────────────────────
+let cy = null;
+
+/** Collect all model elements optionally filtered to top-level only */
+function collectAllElements(topLevelOnly) {
+  const out = [];
+  MODEL.layers.forEach(l => {
+    l.groups.forEach(g => {
+      g.elements.forEach(el => {
+        out.push(el);
+        if (!topLevelOnly) {
+          (el.children || []).forEach(c => out.push(c));
+        }
+      });
+    });
+  });
+  return out;
+}
+
+/** Build Cytoscape elements array */
+function buildCyElements(filterLayer, topLevelOnly) {
+  const allEls = collectAllElements(topLevelOnly);
+
+  // Filter to layer if needed
+  const elSubset = filterLayer === 'all'
+    ? allEls
+    : allEls.filter(el => el.layer === filterLayer ||
+        (el.realizes || []).some(tid => elementById[tid]?.layer === filterLayer));
+
+  const includedIds = new Set(elSubset.map(el => el.id));
+  const nodes = elSubset.map(el => ({
+    data: {
+      id: el.id,
+      label: el.id,
+      fullname: el.name,
+      layer: el.layer,
+      color: layerById[el.layer]?.color || '#666',
+      textColor: layerById[el.layer]?.text || 'white',
+    }
+  }));
+
+  const edges = [];
+  const edgeSeen = new Set();
+  elSubset.forEach(el => {
+    (el.realizes || []).forEach(tid => {
+      if (!includedIds.has(tid)) return;
+      const key = `${tid}→${el.id}`;
+      if (edgeSeen.has(key)) return;
+      edgeSeen.add(key);
+      edges.push({
+        data: {
+          id: key,
+          source: tid,     // abstract element (higher in arch = drawn higher)
+          target: el.id,   // concrete element
+          color: layerById[el.layer]?.color || '#888'
+        }
+      });
+    });
+  });
+
+  return { nodes, edges };
+}
+
+/** Assign preset x/y positions in horizontal bands per layer */
+function computePresetPositions(nodes) {
+  const layerOrder = MODEL.layers.map(l => l.id);
+  const byLayer = {};
+  layerOrder.forEach(lid => { byLayer[lid] = []; });
+  nodes.forEach(n => { (byLayer[n.data.layer] || (byLayer[n.data.layer] = [])).push(n.data.id); });
+
+  const MAX_PER_ROW = 16;
+  const X_GAP = 100;
+  const Y_ROW_GAP = 50;
+  const Y_BAND_GAP = 80;
+  const positions = {};
+  let currentY = 80;
+
+  layerOrder.forEach(lid => {
+    const ids = byLayer[lid] || [];
+    if (!ids.length) return;
+    const rows = Math.ceil(ids.length / MAX_PER_ROW);
+    ids.forEach((id, i) => {
+      const row = Math.floor(i / MAX_PER_ROW);
+      const col = i % MAX_PER_ROW;
+      const rowSize = Math.min(ids.length - row * MAX_PER_ROW, MAX_PER_ROW);
+      const totalW = (rowSize - 1) * X_GAP;
+      positions[id] = { x: col * X_GAP - totalW / 2, y: currentY + row * Y_ROW_GAP };
+    });
+    currentY += rows * Y_ROW_GAP + Y_BAND_GAP;
+  });
+
+  return positions;
+}
+
+function buildCy(filterLayer, topLevelOnly) {
+  const { nodes, edges } = buildCyElements(filterLayer, topLevelOnly);
+  const positions = computePresetPositions(nodes);
+
+  const elements = [
+    ...nodes.map(n => ({ data: n.data, position: positions[n.data.id] || { x: 0, y: 0 } })),
+    ...edges
+  ];
+
+  if (cy) { cy.destroy(); cy = null; }
+
+  cy = cytoscape({
+    container: document.getElementById('cyContainer'),
+    elements,
+    layout: { name: 'preset' },
+    style: [
+      {
+        selector: 'node',
+        style: {
+          'label': 'data(label)',
+          'background-color': 'data(color)',
+          'color': 'data(textColor)',
+          'text-valign': 'center',
+          'text-halign': 'center',
+          'font-size': '9px',
+          'font-weight': '700',
+          'width': '78px',
+          'height': '26px',
+          'shape': 'round-rectangle',
+          'text-wrap': 'wrap',
+          'text-max-width': '74px',
+          'border-color': 'rgba(255,255,255,0.25)',
+          'border-width': '1px',
+        }
+      },
+      {
+        selector: 'node:selected',
+        style: {
+          'border-color': 'white',
+          'border-width': '2.5px',
+          'border-opacity': '1',
+        }
+      },
+      {
+        selector: 'node.faded',
+        style: { 'opacity': 0.2 }
+      },
+      {
+        selector: 'edge',
+        style: {
+          'width': 1.5,
+          'line-color': 'data(color)',
+          'target-arrow-color': 'data(color)',
+          'target-arrow-shape': 'triangle',
+          'curve-style': 'bezier',
+          'opacity': 0.55,
+          'arrow-scale': 0.75,
+        }
+      },
+      {
+        selector: 'edge.highlighted',
+        style: { 'opacity': 1, 'width': 2.5 }
+      },
+      {
+        selector: 'edge.faded',
+        style: { 'opacity': 0.05 }
+      },
+    ]
+  });
+
+  // Hover: highlight connected edges
+  cy.on('mouseover', 'node', (evt) => {
+    const node = evt.target;
+    cy.elements().addClass('faded');
+    cy.elements().removeClass('highlighted');
+    node.removeClass('faded');
+    node.connectedEdges().removeClass('faded').addClass('highlighted');
+    node.connectedEdges().connectedNodes().removeClass('faded');
+  });
+  cy.on('mouseout', 'node', () => {
+    cy.elements().removeClass('faded highlighted');
+  });
+
+  // Tap: navigate to element in main viewer
+  cy.on('tap', 'node', (evt) => {
+    const id = evt.target.data('id');
+    const target = elementById[id];
+    if (!target) return;
+    closeGraph();
+    activeLayer = target.layer;
+    selectedId = id;
+    renderLayerNav();
+    renderTree();
+    renderDetail();
+    setTimeout(() => {
+      const node = document.querySelector(`[data-id="${id}"]`);
+      if (node) {
+        node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const color = layerColor(activeLayer);
+        node.style.background = `${color}22`;
+        node.style.outline    = `2px solid ${color}66`;
+      }
+    }, 80);
+  });
+
+  cy.fit(50);
+}
+
+function openGraph() {
+  document.getElementById('graphOverlay').style.display = 'block';
+  const filterLayer = document.getElementById('graphLayerFilter').value;
+  const topOnly     = document.getElementById('graphDepthFilter').value === 'top';
+  buildCy(filterLayer, topOnly);
+}
+
+function closeGraph() {
+  document.getElementById('graphOverlay').style.display = 'none';
+}
+
+// Keyboard close
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeGraph();
+});
+
+// Click outside panel to close
+document.getElementById('graphOverlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('graphOverlay')) closeGraph();
+});
+
+// Filter controls
+document.getElementById('graphLayerFilter').addEventListener('change', () => {
+  if (cy) {
+    const filterLayer = document.getElementById('graphLayerFilter').value;
+    const topOnly     = document.getElementById('graphDepthFilter').value === 'top';
+    buildCy(filterLayer, topOnly);
+  }
+});
+document.getElementById('graphDepthFilter').addEventListener('change', () => {
+  if (cy) {
+    const filterLayer = document.getElementById('graphLayerFilter').value;
+    const topOnly     = document.getElementById('graphDepthFilter').value === 'top';
+    buildCy(filterLayer, topOnly);
+  }
+});
+
+// Build legend + populate filter dropdown
+(function initGraphUI() {
+  const select = document.getElementById('graphLayerFilter');
+  const legend = document.getElementById('graphLegend');
+  MODEL.layers.forEach(l => {
+    const opt = document.createElement('option');
+    opt.value = l.id; opt.textContent = `${l.badge} — ${l.name}`;
+    select.appendChild(opt);
+
+    const chip = document.createElement('span');
+    chip.style.cssText = `background:${l.color};color:${l.text};font-size:.68rem;
+      padding:2px 9px;border-radius:10px;font-weight:700;white-space:nowrap`;
+    chip.textContent = l.badge;
+    legend.appendChild(chip);
   });
 })();
 
