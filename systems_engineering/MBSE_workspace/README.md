@@ -1,6 +1,22 @@
 # MBSE Workspace — Capella Model
 
-This directory contains the machine-readable **Eclipse Capella** MBSE model for the JPL Open Source Rover. The model implements the complete Arcadia methodology across all five engineering layers.
+This directory contains the machine-readable **Eclipse Capella** MBSE model for the JPL Open Source Rover, plus a browser-based model viewer that requires no tools to install.
+
+## Interactive Model Viewer
+
+> **No Capella required.** Open the viewer directly in any browser:
+
+**[Open model_viewer.html](model_viewer.html)**
+
+The viewer shows all 103 model elements across all five Arcadia layers with full cross-layer traceability. Click any element to see its description, inputs/outputs, what it realizes, and what realizes it. Layer tabs, expandable trees, and a search bar are included.
+
+To regenerate the viewer after editing the model data:
+```bash
+cd systems_engineering/MBSE_workspace
+python3 generate_model_viewer.py
+```
+
+---
 
 ## Capella Model Source
 

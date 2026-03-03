@@ -1,0 +1,885 @@
+#!/usr/bin/env python3
+"""
+generate_model_viewer.py
+========================
+Generates a standalone interactive HTML model viewer for the OSR MBSE model.
+No server, no Capella, no build step — just open model_viewer.html in a browser.
+
+Usage:
+    cd systems_engineering/MBSE_workspace
+    python3 generate_model_viewer.py
+    # then open model_viewer.html  (or visit via mkdocs serve)
+"""
+
+import json
+from pathlib import Path
+
+# ---------------------------------------------------------------------------
+# Model data
+# ---------------------------------------------------------------------------
+
+MODEL = {
+    "meta": {
+        "title": "OSR MBSE Model",
+        "subtitle": "Open Source Rover — Arcadia/Capella 6.1.0",
+        "repo": "https://github.com/nasa-jpl/open-source-rover",
+    },
+    "layers": [
+        # ── OA ──────────────────────────────────────────────────────────────
+        {
+            "id": "oa", "name": "Operational Analysis", "badge": "OA",
+            "color": "#0d6efd", "text": "white",
+            "description": "Defines who does what in the operational world, independent of the system.",
+            "groups": [
+                {
+                    "label": "Operational Entities",
+                    "elements": [
+                        {"id":"OE-01","name":"OE-01 Ground Operator","type":"OperationalActor",
+                         "desc":"Human operator controlling the rover via gamepad and ground station."},
+                        {"id":"OE-02","name":"OE-02 Developer","type":"OperationalActor",
+                         "desc":"Engineer writing software and extending rover capabilities."},
+                        {"id":"OE-03","name":"OE-03 Builder","type":"OperationalActor",
+                         "desc":"Person assembling the mechanical and electrical hardware."},
+                        {"id":"OE-04","name":"OE-04 Safety Observer","type":"OperationalActor",
+                         "desc":"Monitors operation for hazards; authority to stop the mission."},
+                        {"id":"OE-05","name":"OE-05 Contributor","type":"OperationalActor",
+                         "desc":"Community contributor designing payloads or modifications."},
+                        {"id":"OE-06","name":"OE-06 OSR System","type":"Entity",
+                         "desc":"The rover itself — the system under study."},
+                        {"id":"OE-07","name":"OE-07 Ground Station","type":"Entity",
+                         "desc":"Laptop/PC running ROS and the operator UI."},
+                        {"id":"OE-08","name":"OE-08 Battery Charger","type":"Entity",
+                         "desc":"LiPo balance charger; external to the rover."},
+                        {"id":"OE-09","name":"OE-09 Payload","type":"Entity",
+                         "desc":"Optional science instrument mounted on the rover body."},
+                        {"id":"OE-10","name":"OE-10 External Terrain","type":"Entity",
+                         "desc":"The physical environment the rover traverses."},
+                    ]
+                },
+                {
+                    "label": "Operational Activities",
+                    "elements": [
+                        {"id":"OAct-01","name":"OAct-01 Conduct Rover Mission",
+                         "desc":"Core mission loop: plan, command, monitor, respond, collect.",
+                         "children":[
+                            {"id":"OAct-01.1","name":"OAct-01.1 Plan Traverse Route",
+                             "desc":"Operator assesses terrain and defines a safe traverse path."},
+                            {"id":"OAct-01.2","name":"OAct-01.2 Command Rover Motion",
+                             "desc":"Operator sends motion commands via gamepad → Wi-Fi → /cmd_vel."},
+                            {"id":"OAct-01.3","name":"OAct-01.3 Monitor Rover State",
+                             "desc":"Operator watches telemetry (battery, IMU, currents, odom)."},
+                            {"id":"OAct-01.4","name":"OAct-01.4 Respond to Hazard",
+                             "desc":"Operator or system halts motion on stall, tip risk, or low battery."},
+                            {"id":"OAct-01.5","name":"OAct-01.5 Collect Sensor Data",
+                             "desc":"Operator or scientist logs camera and payload data during traverse."},
+                        ]},
+                        {"id":"OAct-02","name":"OAct-02 Maintain Rover",
+                         "desc":"Post-mission maintenance: charge, inspect, update software.",
+                         "children":[
+                            {"id":"OAct-02.1","name":"OAct-02.1 Charge Battery",
+                             "desc":"Balance-charge 3S LiPo at ≤1C after each session."},
+                            {"id":"OAct-02.2","name":"OAct-02.2 Inspect and Repair Hardware",
+                             "desc":"Post-session checklist: fasteners, joints, wiring, connectors."},
+                            {"id":"OAct-02.3","name":"OAct-02.3 Update Software",
+                             "desc":"SSH to RPi, git pull, catkin_make, smoke test."},
+                        ]},
+                        {"id":"OAct-03","name":"OAct-03 Build Rover",
+                         "desc":"One-time build sequence from parts kit to operational rover.",
+                         "children":[
+                            {"id":"OAct-03.1","name":"OAct-03.1 Source Components",
+                             "desc":"Procure all BOM items; verify quantities and specs."},
+                            {"id":"OAct-03.2","name":"OAct-03.2 Assemble Mechanical Structure",
+                             "desc":"Build chassis, rocker-bogie, wheel modules."},
+                            {"id":"OAct-03.3","name":"OAct-03.3 Install Electrical System",
+                             "desc":"Mount PCB, wire motors/servos/sensors, continuity test."},
+                            {"id":"OAct-03.4","name":"OAct-03.4 Install and Configure Software",
+                             "desc":"Flash RPi OS, install ROS Noetic, build workspace, first motion test."},
+                        ]},
+                        {"id":"OAct-04","name":"OAct-04 Extend Rover Capability",
+                         "desc":"Design, integrate, and develop software for custom payloads.",
+                         "children":[
+                            {"id":"OAct-04.1","name":"OAct-04.1 Design Payload or Modification",
+                             "desc":"Define payload meeting rover interface constraints."},
+                            {"id":"OAct-04.2","name":"OAct-04.2 Integrate Payload",
+                             "desc":"Mount payload; connect power and data; verify no interference."},
+                            {"id":"OAct-04.3","name":"OAct-04.3 Develop Custom Software",
+                             "desc":"Write ROS node for payload data; add to launch file."},
+                        ]},
+                    ]
+                }
+            ]
+        },
+        # ── SA ──────────────────────────────────────────────────────────────
+        {
+            "id": "sa", "name": "System Analysis", "badge": "SA",
+            "color": "#198754", "text": "white",
+            "description": "Defines what the OSR system does at its boundary. Functions are decomposed from a root.",
+            "groups": [
+                {
+                    "label": "System Functions",
+                    "elements": [
+                        {"id":"SF-01","name":"SF-01 Receive and Decode Command",
+                         "realizes":["OAct-01.2"],
+                         "desc":"Subscribe to /cmd_vel; validate Twist message; arm 1-second watchdog.",
+                         "inputs":"geometry_msgs/Twist via Wi-Fi","outputs":"(v_linear, v_angular)"},
+                        {"id":"SF-02","name":"SF-02 Execute Mobility",
+                         "realizes":["OAct-01.2"],
+                         "desc":"Translate velocity intent into motor and servo commands via kinematic model.",
+                         "inputs":"(v_linear, v_angular)","outputs":"Motor PWM, servo angles",
+                         "children":[
+                            {"id":"SF-02.1","name":"SF-02.1 Compute Drive Commands",
+                             "desc":"Rocker-bogie differential drive kinematics → 6 wheel speed setpoints."},
+                            {"id":"SF-02.2","name":"SF-02.2 Drive Wheels",
+                             "desc":"Send SpeedM1M2 commands to 3× RoboClaw via USB serial at 20 Hz."},
+                            {"id":"SF-02.3","name":"SF-02.3 Steer Corner Wheels",
+                             "desc":"Ackermann angles → PCA9685 I²C servo driver at 250 ms update."},
+                        ]},
+                        {"id":"SF-03","name":"SF-03 Manage Power",
+                         "realizes":["OAct-02.1","OAct-01.3"],
+                         "desc":"Distribute regulated power; monitor battery; protect against overcurrent.",
+                         "inputs":"Raw 3S LiPo DC","outputs":"5V/12V rails, battery SoC%",
+                         "children":[
+                            {"id":"SF-03.1","name":"SF-03.1 Distribute Electrical Power",
+                             "desc":"PCB buck converters provide regulated 5V (logic) and motor supply rails."},
+                            {"id":"SF-03.2","name":"SF-03.2 Monitor Battery State",
+                             "desc":"INA219 I²C ADC → voltage, current, SoC% → /battery_state at 1 Hz."},
+                            {"id":"SF-03.3","name":"SF-03.3 Protect Against Overcurrent/Short",
+                             "desc":"Fuses + software cutoff; triggers SF-06.4 on >10 A motor current."},
+                        ]},
+                        {"id":"SF-04","name":"SF-04 Process and Publish Telemetry",
+                         "realizes":["OAct-01.3"],
+                         "desc":"Sample sensors, fuse to state estimate, publish to ground station.",
+                         "inputs":"Encoder ticks, IMU, motor currents","outputs":"/odom /imu /battery_state",
+                         "children":[
+                            {"id":"SF-04.1","name":"SF-04.1 Sample Sensors",
+                             "desc":"Encoders @ 20 Hz, BNO055 IMU @ 50 Hz, motor currents @ 10 Hz."},
+                            {"id":"SF-04.2","name":"SF-04.2 Estimate Rover State",
+                             "desc":"Dead-reckoning odometry + complementary filter attitude (α=0.98)."},
+                            {"id":"SF-04.3","name":"SF-04.3 Transmit Telemetry",
+                             "desc":"Serialize all state data as ROS topics; bridge to ground station."},
+                        ]},
+                        {"id":"SF-05","name":"SF-05 Capture and Stream Video",
+                         "realizes":["OAct-01.5"],
+                         "desc":"Optional: capture camera frames and stream MJPEG to ground station.",
+                         "inputs":"CSI/USB camera","outputs":"/camera/image_raw/compressed @ ≥15 fps"},
+                        {"id":"SF-06","name":"SF-06 Detect and Handle Faults",
+                         "realizes":["OAct-01.4"],
+                         "desc":"Continuous safety monitoring; latching safe-stop on threshold breach.",
+                         "inputs":"Motor currents, battery voltage, IMU roll/pitch",
+                         "outputs":"Fault flags, halt command, /diagnostics",
+                         "children":[
+                            {"id":"SF-06.1","name":"SF-06.1 Monitor Motor Currents",
+                             "desc":"Per-channel current > 10 A → critical fault."},
+                            {"id":"SF-06.2","name":"SF-06.2 Monitor Battery Voltage",
+                             "desc":"< 11.0 V warning; < 10.5 V → safe stop."},
+                            {"id":"SF-06.3","name":"SF-06.3 Detect Tip Risk (IMU)",
+                             "desc":"Roll or pitch > 35° → immediate safe stop."},
+                            {"id":"SF-06.4","name":"SF-06.4 Execute Safe Stop",
+                             "desc":"Zero all motor setpoints; publish fault; latch until operator clears."},
+                        ]},
+                        {"id":"SF-07","name":"SF-07 Support Payload Interface",
+                         "realizes":["OAct-04.2"],
+                         "desc":"Provide switched power and data connectivity to optional payload.",
+                         "inputs":"Payload power request, payload data","outputs":"5V/12V, USB/I²C/UART",
+                         "children":[
+                            {"id":"SF-07.1","name":"SF-07.1 Provide Power to Payload",
+                             "desc":"GPIO-switched 5V @ 2A, 12V @ 2A; current monitoring via INA219."},
+                            {"id":"SF-07.2","name":"SF-07.2 Route Payload Data",
+                             "desc":"Hardware pass-through USB, I²C, UART to Raspberry Pi."},
+                        ]},
+                    ]
+                }
+            ]
+        },
+        # ── LA ──────────────────────────────────────────────────────────────
+        {
+            "id": "la", "name": "Logical Architecture", "badge": "LA",
+            "color": "#6f42c1", "text": "white",
+            "description": "Defines functional subsystems (components) and refines system functions into logical functions.",
+            "groups": [
+                {
+                    "label": "Logical Components",
+                    "elements": [
+                        {"id":"LC-01","name":"LC-01 Communication Manager",
+                         "realizes":["SF-01","SF-04.3","SF-05"],
+                         "desc":"Wi-Fi gateway: receives /cmd_vel from ground station; relays telemetry and video outbound. Manages 1-second command watchdog."},
+                        {"id":"LC-02","name":"LC-02 Command Processor",
+                         "realizes":["SF-01"],
+                         "desc":"Validates and clamps incoming Twist messages; outputs motion intent to LC-03; issues zero-velocity on halt or watchdog timeout."},
+                        {"id":"LC-03","name":"LC-03 Mobility Controller",
+                         "realizes":["SF-02.1","SF-02.2","SF-02.3"],
+                         "desc":"Rocker-bogie kinematic model: 6 wheel speed setpoints via RoboClaw serial + 4 Ackermann steering angles via PCA9685 I²C."},
+                        {"id":"LC-04","name":"LC-04 State Estimator",
+                         "realizes":["SF-04.1","SF-04.2"],
+                         "desc":"Encoder sampling (20 Hz), IMU sampling (50 Hz), dead-reckoning odometry, complementary filter attitude."},
+                        {"id":"LC-05","name":"LC-05 Fault Monitor",
+                         "realizes":["SF-06.1","SF-06.2","SF-06.3","SF-06.4"],
+                         "desc":"10 Hz monitoring loop: motor current > 10 A, battery < 10.5 V, tilt > 35° → latching safe stop."},
+                        {"id":"LC-06","name":"LC-06 Power Manager",
+                         "realizes":["SF-03.1","SF-03.2","SF-03.3"],
+                         "desc":"INA219 I²C reads at 1 Hz → SoC% via LiPo voltage curve → /battery_state. GPIO load switch for payload rail."},
+                        {"id":"LC-07","name":"LC-07 Telemetry Publisher",
+                         "realizes":["SF-04.3"],
+                         "desc":"Aggregates /odom, /imu, /battery_state, /motor_currents, /diagnostics and relays to LC-01 for Wi-Fi transmission at ≥5 Hz."},
+                        {"id":"LC-08","name":"LC-08 Payload Manager",
+                         "realizes":["SF-07.1","SF-07.2"],
+                         "desc":"GPIO-controlled payload power rail; current monitoring; USB/I²C/UART data pass-through to RPi."},
+                    ]
+                },
+                {
+                    "label": "Logical Functions",
+                    "elements": [
+                        {"id":"LF-01.1","name":"LF-01.1 Receive ROS Command Topic","realizes":["SF-01"],
+                         "desc":"Subscribe to /cmd_vel, forward to LC-02."},
+                        {"id":"LF-01.2","name":"LF-01.2 Validate Command Packet Integrity","realizes":["SF-01"],
+                         "desc":"Check for NaN/Inf in Twist message fields; discard malformed packets."},
+                        {"id":"LF-01.3","name":"LF-01.3 Apply Velocity Limits","realizes":["SF-01"],
+                         "desc":"Clamp linear.x to ±0.4 m/s and angular.z to ±1.0 rad/s."},
+                        {"id":"LF-01.4","name":"LF-01.4 Detect Command Watchdog Timeout","realizes":["SF-01"],
+                         "desc":"Issue zero velocity after 1 s of no /cmd_vel messages."},
+                        {"id":"LF-02.1","name":"LF-02.1 Compute Differential Drive Kinematics","realizes":["SF-02.1"],
+                         "desc":"v, ω → 6 per-wheel speed setpoints using rocker-bogie geometry."},
+                        {"id":"LF-02.2","name":"LF-02.2 Compute Ackermann Corner Angles","realizes":["SF-02.3"],
+                         "desc":"ω → 4 corner servo angles via Ackermann formula."},
+                        {"id":"LF-02.3","name":"LF-02.3 Output Drive PWM Setpoints","realizes":["SF-02.2"],
+                         "desc":"Send SpeedM1M2 to each RoboClaw at 20 Hz via USB serial."},
+                        {"id":"LF-02.4","name":"LF-02.4 Output Steering Angle Setpoints","realizes":["SF-02.3"],
+                         "desc":"Write pulse-width to PCA9685 channels via I²C."},
+                        {"id":"LF-03.1","name":"LF-03.1 Read Battery Voltage (ADC)","realizes":["SF-03.2"],
+                         "desc":"Read INA219 bus voltage register over I²C at 1 Hz."},
+                        {"id":"LF-03.2","name":"LF-03.2 Estimate State-of-Charge","realizes":["SF-03.2"],
+                         "desc":"Voltage → SoC% via pre-characterised 3S LiPo discharge curve."},
+                        {"id":"LF-03.3","name":"LF-03.3 Distribute Regulated Power Rails","realizes":["SF-03.1"],
+                         "desc":"PCB buck converters supply 5V and motor rail (hardware, always-on)."},
+                        {"id":"LF-03.4","name":"LF-03.4 Engage Overcurrent Protection","realizes":["SF-03.3"],
+                         "desc":"Trip software cutoff on >10 A per motor channel."},
+                        {"id":"LF-04.1","name":"LF-04.1 Sample Wheel Encoders","realizes":["SF-04.1"],
+                         "desc":"ReadEncM1M2 from each RoboClaw via serial at 20 Hz."},
+                        {"id":"LF-04.2","name":"LF-04.2 Sample IMU","realizes":["SF-04.1"],
+                         "desc":"Read BNO055 linear acceleration + gyroscope via I²C at 50 Hz."},
+                        {"id":"LF-04.3","name":"LF-04.3 Sample Motor Currents","realizes":["SF-04.1"],
+                         "desc":"ReadCurrents from each RoboClaw alongside encoder read at 10 Hz."},
+                        {"id":"LF-04.4","name":"LF-04.4 Integrate Odometry from Encoders","realizes":["SF-04.2"],
+                         "desc":"Δticks → displacement per wheel → x, y, θ dead-reckoning pose."},
+                        {"id":"LF-04.5","name":"LF-04.5 Estimate Attitude (IMU Filter)","realizes":["SF-04.2"],
+                         "desc":"Complementary filter: θ = 0.98·(θ+gyro·dt) + 0.02·accel_angle."},
+                        {"id":"LF-04.6","name":"LF-04.6 Publish Telemetry Bundle","realizes":["SF-04.3"],
+                         "desc":"Aggregate all state topics and publish diagnostic summary at 5 Hz."},
+                        {"id":"LF-05.1","name":"LF-05.1 Monitor Per-Motor Current","realizes":["SF-06.1"],
+                         "desc":"Compare each channel against 10 A threshold at 10 Hz."},
+                        {"id":"LF-05.2","name":"LF-05.2 Monitor Battery Voltage","realizes":["SF-06.2"],
+                         "desc":"Compare against 11.0 V and 10.5 V thresholds at 1 Hz."},
+                        {"id":"LF-05.3","name":"LF-05.3 Monitor IMU Tilt","realizes":["SF-06.3"],
+                         "desc":"Compare roll and pitch against ±35° threshold at 10 Hz."},
+                        {"id":"LF-05.4","name":"LF-05.4 Execute Safe Stop","realizes":["SF-06.4"],
+                         "desc":"Zero all RoboClaw setpoints directly via serial; latch halt flag."},
+                        {"id":"LF-05.5","name":"LF-05.5 Publish Fault Events","realizes":["SF-06.4"],
+                         "desc":"Publish DiagnosticStatus ERROR to /diagnostics with timestamp."},
+                        {"id":"LF-06.1","name":"LF-06.1 Stream Video Frames","realizes":["SF-05"],
+                         "desc":"Capture + MJPEG-compress + publish /camera/image_raw/compressed."},
+                        {"id":"LF-07.1","name":"LF-07.1 Enable/Disable Payload Power","realizes":["SF-07.1"],
+                         "desc":"Toggle GPIO-driven PCB load switch for payload 5V/12V rail."},
+                        {"id":"LF-07.2","name":"LF-07.2 Monitor Payload Current","realizes":["SF-07.1"],
+                         "desc":"Read INA219 payload channel at 1 Hz; disable on >2 A."},
+                        {"id":"LF-07.3","name":"LF-07.3 Route Payload Data Bus","realizes":["SF-07.2"],
+                         "desc":"Hardware pass-through on PCB: USB, I²C, UART to RPi."},
+                    ]
+                }
+            ]
+        },
+        # ── PA ──────────────────────────────────────────────────────────────
+        {
+            "id": "pa", "name": "Physical Architecture", "badge": "PA",
+            "color": "#fd7e14", "text": "white",
+            "description": "Maps functions and components onto specific hardware and software. All software runs on the Raspberry Pi 4B under ROS Noetic.",
+            "groups": [
+                {
+                    "label": "Physical Components",
+                    "elements": [
+                        {"id":"PC-COMP-01","name":"PC-COMP-01 Raspberry Pi 4B",
+                         "realizes":["LC-01","LC-02","LC-03","LC-04","LC-05","LC-07"],
+                         "desc":"Quad-core ARM Cortex-A72 @ 1.5 GHz, 4 GB RAM. Runs ROS Noetic on Raspberry Pi OS Bullseye. All software PFs deployed here.",
+                         "nature":"NODE","spec":"4 GB, 32 GB microSD, USB×4, CSI camera, GPIO×40"},
+                        {"id":"PC-MCTL-01","name":"PC-MCTL-01 RoboClaw 2×15A ×3",
+                         "realizes":["LC-03"],
+                         "desc":"Three BasicMicro RoboClaw 2×15A motor controllers. USB serial interface to RPi. Two drive motors each.",
+                         "nature":"NODE","spec":"USB serial, 15 A per channel, encoder input, 6–34 V"},
+                        {"id":"PC-MCTL-02","name":"PC-MCTL-02 PCA9685 Servo Driver",
+                         "realizes":["LC-03"],
+                         "desc":"Adafruit PCA9685 16-channel 12-bit PWM servo driver. I²C address 0x40. Controls 4 corner steering servos.",
+                         "nature":"NODE","spec":"I²C 0x40, 16 channels, 50 Hz PWM, 500–2500 µs range"},
+                        {"id":"PC-PCB-01","name":"PC-PCB-01 Custom OSR PCB",
+                         "realizes":["LC-06","LC-08"],
+                         "desc":"Custom PCB providing: DC-DC buck converters (5V, motor rail), INA219 power monitoring, blade fuses, GPIO load switches for payload, XT60 battery input.",
+                         "nature":"NODE","spec":"12V input, 5V@3A + motor rail, INA219 I²C 0x40/0x41"},
+                        {"id":"PC-SENS-01","name":"PC-SENS-01 BNO055 IMU",
+                         "realizes":["LC-04"],
+                         "desc":"Bosch BNO055 9-DOF IMU: accelerometer, gyroscope, magnetometer with onboard sensor fusion. I²C interface.",
+                         "nature":"NODE","spec":"I²C 0x28/0x29, 100 Hz max output, ±2000°/s gyro"},
+                        {"id":"PC-SENS-02","name":"PC-SENS-02 Wheel Encoders (×6)",
+                         "realizes":["LC-04"],
+                         "desc":"Quadrature encoders built into each drive motor. Read via RoboClaw ReadEncM1M2 serial command.",
+                         "nature":"NODE","spec":"Quadrature, 1632 CPR (Pololu 37D), read via RoboClaw"},
+                        {"id":"PC-SENS-03","name":"PC-SENS-03 INA219 Power Monitor",
+                         "realizes":["LC-06"],
+                         "desc":"Texas Instruments INA219 I²C current/voltage sensor. Monitors main battery rail and payload current.",
+                         "nature":"NODE","spec":"I²C 0x40, ±26V, 3.2A max, 12-bit ADC"},
+                        {"id":"PC-CAM-01","name":"PC-CAM-01 Camera Module (CSI/USB)",
+                         "realizes":["LC-07"],
+                         "desc":"Optional: Raspberry Pi Camera Module v2 (CSI) or compatible USB webcam. Provides forward-facing video stream.",
+                         "nature":"NODE","spec":"1080p CSI or USB UVC, MJPEG compression"},
+                        {"id":"PC-PWR-01","name":"PC-PWR-01 3S LiPo Battery",
+                         "realizes":[],
+                         "desc":"3-cell lithium polymer battery pack. 11.1 V nominal, 12.6 V fully charged. Sole power source for entire rover.",
+                         "nature":"NODE","spec":"3S 5200 mAh, 11.1 V nominal, XT60 connector, 30C"},
+                        {"id":"PC-PWR-02","name":"PC-PWR-02 LiPo Balance Charger",
+                         "realizes":[],
+                         "desc":"External balance charger used between missions. Not installed on rover.",
+                         "nature":"NODE","spec":"Balance charger, ≤1C rate, cell-level monitoring"},
+                        {"id":"PC-MECH-01","name":"PC-MECH-01 Drive Motor Assembly (×6)",
+                         "realizes":[],
+                         "desc":"Six Pololu 37D 12V 19:1 gearmotors with encoders. Direct-drive to wheels via motor hub.",
+                         "nature":"NODE","spec":"12V, 19:1 gear ratio, 1632 CPR encoder, ≤10 A stall"},
+                        {"id":"PC-MECH-02","name":"PC-MECH-02 Steering Servo Assembly (×4)",
+                         "realizes":[],
+                         "desc":"Four corner wheel steering servos driven by PCA9685. Ackermann geometry for smooth turns.",
+                         "nature":"NODE","spec":"180° servo, ±30° operating range, 500–2500 µs PWM"},
+                        {"id":"PC-MECH-03","name":"PC-MECH-03 Rocker-Bogie Chassis",
+                         "realizes":[],
+                         "desc":"Aluminum extrusion frame with rocker-bogie suspension. Passive differential equalises rocker angles over terrain.",
+                         "nature":"NODE","spec":"6061 aluminium, 45×45 mm extrusion, flanged bearings"},
+                        {"id":"PC-MECH-04","name":"PC-MECH-04 Wheel and Tire Assembly (×6)",
+                         "realizes":[],
+                         "desc":"Six 4-inch diameter foam-filled tires on aluminum hubs. ~75 mm ground clearance.",
+                         "nature":"NODE","spec":"4\" OD foam tire, aluminium hub, set-screw motor shaft"},
+                    ]
+                },
+                {
+                    "label": "Physical Functions",
+                    "elements": [
+                        {"id":"PF-01.1","name":"PF-01.1 Subscribe to /cmd_vel ROS Topic","realizes":["LF-01.1"],
+                         "desc":"command_node ROS subscriber, 10 Hz. RPi."},
+                        {"id":"PF-01.2","name":"PF-01.2 Validate Twist Message Fields","realizes":["LF-01.2"],
+                         "desc":"math.isfinite() check on linear.x and angular.z."},
+                        {"id":"PF-01.3","name":"PF-01.3 Clamp Velocity to Configured Limits","realizes":["LF-01.3"],
+                         "desc":"numpy.clip(v, -v_max, v_max) both axes."},
+                        {"id":"PF-01.4","name":"PF-01.4 Watchdog Timer on /cmd_vel","realizes":["LF-01.4"],
+                         "desc":"rospy.Timer 1-second callback, emits zero Twist on fire."},
+                        {"id":"PF-02.1","name":"PF-02.1 Rocker-Bogie Differential Drive Kinematics","realizes":["LF-02.1"],
+                         "desc":"drive_node Python matrix solve at 20 Hz."},
+                        {"id":"PF-02.2","name":"PF-02.2 Ackermann Corner Angle Computation","realizes":["LF-02.2"],
+                         "desc":"drive_node Python trig: atan(L / (R ± W/2))."},
+                        {"id":"PF-02.3","name":"PF-02.3 Write Motor Setpoint to RoboClaw","realizes":["LF-02.3"],
+                         "desc":"roboclaw Python library SpeedM1M2 via /dev/ttyACM*."},
+                        {"id":"PF-02.4","name":"PF-02.4 Write Angle Setpoint to PCA9685","realizes":["LF-02.4"],
+                         "desc":"adafruit_servokit library I²C write at 50 Hz PWM."},
+                        {"id":"PF-03.1","name":"PF-03.1 Read INA219 Battery Voltage over I²C","realizes":["LF-03.1"],
+                         "desc":"power_node INA219 Python driver, 1 Hz."},
+                        {"id":"PF-03.2","name":"PF-03.2 Compute LiPo SoC from Voltage Curve","realizes":["LF-03.2"],
+                         "desc":"Python lookup table: 12.6V→100%, 10.5V→0%."},
+                        {"id":"PF-03.3","name":"PF-03.3 PCB DC-DC Converter Regulation","realizes":["LF-03.3"],
+                         "desc":"Hardware (always-on); 5V±5% under load."},
+                        {"id":"PF-03.4","name":"PF-03.4 Software Overcurrent Cutoff","realizes":["LF-03.4"],
+                         "desc":"fault_node issues stop to RoboClaw on >10A."},
+                        {"id":"PF-04.1","name":"PF-04.1 Read RoboClaw Encoder Counts","realizes":["LF-04.1"],
+                         "desc":"encoder_node ReadEncM1M2 via USB serial at 20 Hz."},
+                        {"id":"PF-04.2","name":"PF-04.2 Read BNO055 IMU via I²C","realizes":["LF-04.2"],
+                         "desc":"imu_node BNO055 Python driver at 50 Hz."},
+                        {"id":"PF-04.3","name":"PF-04.3 Read Motor Currents from RoboClaw","realizes":["LF-04.3"],
+                         "desc":"encoder_node ReadCurrents alongside encoder read."},
+                        {"id":"PF-04.4","name":"PF-04.4 Integrate Wheel Ticks to Odometry","realizes":["LF-04.4"],
+                         "desc":"Python dead-reckoning inside encoder_node."},
+                        {"id":"PF-04.5","name":"PF-04.5 Complementary Filter for Attitude","realizes":["LF-04.5"],
+                         "desc":"Python: θ = 0.98·(θ+gyro·dt) + 0.02·accel inside imu_node."},
+                        {"id":"PF-04.6","name":"PF-04.6 Publish ROS Telemetry Topics","realizes":["LF-04.6"],
+                         "desc":"ROS publishers: /odom, /imu, /battery_state, /diagnostics."},
+                        {"id":"PF-05.1","name":"PF-05.1 Monitor Current Thresholds","realizes":["LF-05.1"],
+                         "desc":"fault_node subscribes to /motor_currents; checks >10A."},
+                        {"id":"PF-05.2","name":"PF-05.2 Monitor Battery Voltage Threshold","realizes":["LF-05.2"],
+                         "desc":"fault_node subscribes to /battery_state; checks 11.0/10.5V."},
+                        {"id":"PF-05.3","name":"PF-05.3 Monitor IMU Roll/Pitch Threshold","realizes":["LF-05.3"],
+                         "desc":"fault_node subscribes to /imu; checks ±35°."},
+                        {"id":"PF-05.4","name":"PF-05.4 Set All Motor Setpoints to Zero","realizes":["LF-05.4"],
+                         "desc":"fault_node direct SpeedM1M2(0,0) to all RoboClaws."},
+                        {"id":"PF-05.5","name":"PF-05.5 Publish /diagnostics Fault Message","realizes":["LF-05.5"],
+                         "desc":"diagnostic_msgs/DiagnosticArray ERROR on /diagnostics."},
+                        {"id":"PF-06.1","name":"PF-06.1 Capture Frames from Camera","realizes":["LF-06.1"],
+                         "desc":"cv2.VideoCapture or raspicam_node at 30 fps."},
+                        {"id":"PF-06.2","name":"PF-06.2 Compress and Publish Video","realizes":["LF-06.1"],
+                         "desc":"MJPEG via image_transport; /camera/image_raw/compressed."},
+                        {"id":"PF-07.1","name":"PF-07.1 Toggle PCB Load Switch","realizes":["LF-07.1"],
+                         "desc":"RPi.GPIO digital output pin drives PCB MOSFET load switch."},
+                        {"id":"PF-07.2","name":"PF-07.2 Read Payload Rail Current via INA219","realizes":["LF-07.2"],
+                         "desc":"Dedicated INA219 channel; 1 Hz; disable on >2A."},
+                        {"id":"PF-07.3","name":"PF-07.3 Pass-Through USB/I²C/UART to RPi","realizes":["LF-07.3"],
+                         "desc":"Hardware PCB traces; no software mediation."},
+                    ]
+                }
+            ]
+        },
+        # ── EPBS ────────────────────────────────────────────────────────────
+        {
+            "id": "epbs", "name": "EPBS", "badge": "EPBS",
+            "color": "#dc3545", "text": "white",
+            "description": "End Product Breakdown Structure — the physical product decomposition and build verification structure.",
+            "groups": [
+                {
+                    "label": "Configuration Items",
+                    "elements": [
+                        {"id":"CI-01","name":"CI-01 OSR Software Stack (CSCI)","kind":"CSCI",
+                         "realizes":["PC-COMP-01"],
+                         "desc":"All ROS Noetic nodes, launch files, Python libraries, and configuration files. Deployed on the Raspberry Pi SD card.",
+                         "verify":"roslaunch osr_bringup osr.launch starts all 7+ nodes without error."},
+                        {"id":"CI-02","name":"CI-02 Compute Hardware (HWCI)","kind":"HWCI",
+                         "realizes":["PC-COMP-01"],
+                         "desc":"Raspberry Pi 4B board, microSD card, and all USB peripherals (RoboClaw cables, camera).",
+                         "verify":"RPi boots, SSH reachable on rover.local, ROS_MASTER_URI accessible."},
+                        {"id":"CI-03","name":"CI-03 Motor Drive System (HWCI)","kind":"HWCI",
+                         "realizes":["PC-MCTL-01","PC-MCTL-02","PC-MECH-01","PC-MECH-02"],
+                         "desc":"Three RoboClaw 2×15A controllers + PCA9685 servo driver + 6 drive motors + 4 steering servos. Wiring harness included.",
+                         "verify":"All 6 wheels spin at commanded speed; all 4 servos reach Ackermann angles."},
+                        {"id":"CI-04","name":"CI-04 Power and Sensing System (HWCI)","kind":"HWCI",
+                         "realizes":["PC-PCB-01","PC-PWR-01","PC-SENS-01","PC-SENS-02","PC-SENS-03","PC-CAM-01"],
+                         "desc":"Custom OSR PCB + LiPo battery + BNO055 IMU + wheel encoders + INA219 monitors + optional camera.",
+                         "verify":"5V rail 4.75–5.25V; /battery_state publishes valid voltage; /imu roll/pitch within ±2° on level surface."},
+                        {"id":"CI-05","name":"CI-05 Mechanical Structure (HWCI)","kind":"HWCI",
+                         "realizes":["PC-MECH-03","PC-MECH-04"],
+                         "desc":"Aluminium extrusion frame, rocker-bogie linkage, differential bar, flanged bearings, all fasteners, 6 wheel assemblies.",
+                         "verify":"Chassis supports rover mass; rocker-bogie articulates ±30° each side without binding; all 6 wheels contact flat surface."},
+                    ]
+                }
+            ]
+        },
+    ]
+}
+
+# ---------------------------------------------------------------------------
+# HTML template
+# ---------------------------------------------------------------------------
+
+HTML_TEMPLATE = r"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OSR MBSE Model Viewer</title>
+<link rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+<link rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<style>
+  :root { --tree-indent: 1.25rem; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #f8f9fa; }
+  #sidebar { width: 380px; min-width: 280px; max-width: 480px;
+             overflow-y: auto; height: calc(100vh - 120px); }
+  #detail  { flex: 1; overflow-y: auto; height: calc(100vh - 120px); }
+  .layer-header { font-size: .7rem; font-weight: 700; letter-spacing: .08em;
+                  text-transform: uppercase; }
+  .tree-item { cursor: pointer; border-radius: 6px; padding: 3px 6px;
+               user-select: none; white-space: nowrap; overflow: hidden;
+               text-overflow: ellipsis; }
+  .tree-item:hover { background: rgba(0,0,0,.07); }
+  .tree-item.selected { font-weight: 600; }
+  .tree-toggle { width: 1.1rem; display: inline-block; text-align: center;
+                 font-size: .65rem; color: #888; }
+  .tree-children { padding-left: var(--tree-indent); }
+  .badge-id { font-size: .65rem; font-family: monospace; opacity: .75; }
+  .realizes-chip { font-size: .72rem; cursor: pointer; }
+  .realizes-chip:hover { opacity: .8; text-decoration: underline; }
+  .detail-card { border: none; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+  .search-box { font-size: .85rem; }
+  #searchInput { border-radius: 20px; }
+  .section-title { font-size: .75rem; text-transform: uppercase;
+                   letter-spacing: .07em; color: #666; font-weight: 700; }
+  .empty-state { color: #aaa; font-size: .9rem; }
+  .layer-pill { cursor: pointer; border-radius: 20px; padding: 4px 14px;
+                font-size: .8rem; font-weight: 600; }
+  .stat-badge { font-size: .65rem; border-radius: 10px; padding: 1px 7px; }
+  pre { background: #f1f3f5; border-radius: 6px; padding: .5rem .75rem;
+        font-size: .78rem; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────────── -->
+<div class="px-3 pt-3 pb-2 border-bottom bg-white">
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <span style="font-size:1.4rem">🛸</span>
+    <div>
+      <h5 class="mb-0 fw-bold">OSR MBSE Model Viewer</h5>
+      <small class="text-muted">Open Source Rover — Arcadia/Capella 6.1.0</small>
+    </div>
+    <div class="ms-auto d-flex gap-2" id="statsBar"></div>
+  </div>
+  <!-- Layer pills -->
+  <div class="d-flex gap-2 flex-wrap" id="layerNav"></div>
+</div>
+
+<!-- ── Body ───────────────────────────────────────────────────────────── -->
+<div class="d-flex gap-0" style="height:calc(100vh - 120px)">
+
+  <!-- Left: tree -->
+  <div id="sidebar" class="border-end bg-white px-2 py-2">
+    <div class="mb-2">
+      <input id="searchInput" type="search" class="form-control form-control-sm search-box"
+             placeholder="Search elements…">
+    </div>
+    <div id="tree"></div>
+  </div>
+
+  <!-- Resize handle -->
+  <div id="resizer"
+       style="width:5px;cursor:col-resize;background:#dee2e6;flex-shrink:0"></div>
+
+  <!-- Right: detail -->
+  <div id="detail" class="p-3 bg-light">
+    <div class="empty-state text-center mt-5 pt-5">
+      <div style="font-size:3rem">🔍</div>
+      <p class="mt-2">Select an element from the tree to see details,<br>
+         requirements, and cross-layer traceability.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Model data (injected by generate_model_viewer.py) ────────────────────
+const MODEL = __MODEL_JSON__;
+
+// ── Build element index ──────────────────────────────────────────────────
+const elementById = {};
+const realizedByIndex = {}; // id → [{id, name, layer}] (what realizes this)
+
+function indexElement(el, layerId) {
+  el.layer = layerId;
+  elementById[el.id] = el;
+  (el.realizes || []).forEach(tid => {
+    if (!realizedByIndex[tid]) realizedByIndex[tid] = [];
+    realizedByIndex[tid].push({id: el.id, name: el.name, layer: layerId});
+  });
+  (el.children || []).forEach(c => indexElement(c, layerId));
+}
+MODEL.layers.forEach(l =>
+  l.groups.forEach(g =>
+    g.elements.forEach(el => indexElement(el, l.id))
+  )
+);
+
+// ── Layer helpers ────────────────────────────────────────────────────────
+const layerById = {};
+MODEL.layers.forEach(l => { layerById[l.id] = l; });
+
+function layerColor(lid) { return layerById[lid]?.color ?? '#6c757d'; }
+function layerText(lid)  { return layerById[lid]?.text  ?? 'white'; }
+function layerBadge(lid) { return layerById[lid]?.badge ?? lid.toUpperCase(); }
+
+// ── State ────────────────────────────────────────────────────────────────
+let activeLayer = MODEL.layers[0].id;
+let selectedId  = null;
+let searchQuery = '';
+
+// ── Stats bar ────────────────────────────────────────────────────────────
+function renderStats() {
+  const bar = document.getElementById('statsBar');
+  const counts = {};
+  Object.values(elementById).forEach(el => {
+    counts[el.layer] = (counts[el.layer] || 0) + 1;
+  });
+  bar.innerHTML = MODEL.layers.map(l =>
+    `<span class="badge stat-badge"
+           style="background:${l.color};color:${l.text}"
+           title="${l.name}">
+       ${l.badge} ${counts[l.id] ?? 0}
+     </span>`
+  ).join('');
+}
+
+// ── Layer nav ────────────────────────────────────────────────────────────
+function renderLayerNav() {
+  const nav = document.getElementById('layerNav');
+  nav.innerHTML = MODEL.layers.map(l => {
+    const active = l.id === activeLayer;
+    return `<span class="layer-pill ${active ? 'text-white' : 'text-secondary border'}"
+                  style="${active ? 'background:'+l.color : 'background:#fff'}"
+                  data-layer="${l.id}">
+              ${l.badge} — ${l.name}
+            </span>`;
+  }).join('');
+  nav.querySelectorAll('[data-layer]').forEach(el =>
+    el.addEventListener('click', () => {
+      activeLayer = el.dataset.layer;
+      selectedId  = null;
+      renderLayerNav();
+      renderTree();
+      renderDetail();
+    })
+  );
+}
+
+// ── Tree ─────────────────────────────────────────────────────────────────
+function matchesSearch(el) {
+  if (!searchQuery) return true;
+  const q = searchQuery.toLowerCase();
+  return el.id.toLowerCase().includes(q) ||
+         el.name.toLowerCase().includes(q) ||
+         (el.desc || '').toLowerCase().includes(q);
+}
+
+function subtreeMatches(el) {
+  if (matchesSearch(el)) return true;
+  return (el.children || []).some(c => subtreeMatches(c));
+}
+
+function renderTreeItem(el, depth=0) {
+  if (!subtreeMatches(el)) return '';
+  const hasChildren = el.children && el.children.length;
+  const isSelected  = el.id === selectedId;
+  const color       = layerColor(activeLayer);
+  const toggle      = hasChildren
+    ? `<span class="tree-toggle"><i class="bi bi-chevron-right"></i></span>`
+    : `<span class="tree-toggle"></span>`;
+  const sel = isSelected
+    ? `background:${color}22;outline:2px solid ${color}44;` : '';
+  const idPart = el.id.match(/^[A-Z]/) ? `<span class="badge-id text-muted me-1">${el.id}</span>` : '';
+  // strip id prefix from name for display
+  const displayName = el.name.replace(/^[A-Z][A-Z0-9\-\.]*\s+/, '');
+
+  let html = `
+    <div class="tree-item d-flex align-items-center gap-1 mb-1"
+         style="${sel}" data-id="${el.id}">
+      ${toggle}
+      ${idPart}
+      <span class="text-truncate small">${displayName}</span>
+    </div>`;
+
+  if (hasChildren) {
+    const childHtml = el.children.map(c => renderTreeItem(c, depth+1)).join('');
+    html += `<div class="tree-children" data-parent="${el.id}"
+                  style="display:${searchQuery || isSelected ? 'block' : 'none'}">
+               ${childHtml}
+             </div>`;
+  }
+  return html;
+}
+
+function renderTree() {
+  const layer = layerById[activeLayer];
+  const container = document.getElementById('tree');
+  let html = `<div class="mb-1 px-1 layer-header" style="color:${layer.color}">
+                ${layer.badge} — ${layer.name}
+              </div>
+              <div class="text-muted small px-1 mb-2" style="font-size:.72rem">
+                ${layer.description}
+              </div>`;
+  layer.groups.forEach(g => {
+    const items = g.elements.map(el => renderTreeItem(el)).join('');
+    if (!items) return;
+    html += `<div class="section-title px-1 mt-2 mb-1">${g.label}</div>${items}`;
+  });
+  container.innerHTML = html;
+
+  // Click to select
+  container.querySelectorAll('[data-id]').forEach(node => {
+    node.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = node.dataset.id;
+      // toggle children
+      const childDiv = container.querySelector(`[data-parent="${id}"]`);
+      if (childDiv) {
+        childDiv.style.display = childDiv.style.display === 'none' ? 'block' : 'none';
+        const icon = node.querySelector('.bi');
+        if (icon) icon.className = childDiv.style.display === 'none'
+          ? 'bi bi-chevron-right' : 'bi bi-chevron-down';
+      }
+      selectedId = id;
+      renderDetail();
+      // highlight
+      container.querySelectorAll('.tree-item').forEach(n => {
+        const color = layerColor(activeLayer);
+        n.style.background = n.dataset.id === id ? `${color}22` : '';
+        n.style.outline    = n.dataset.id === id ? `2px solid ${color}44` : '';
+      });
+    });
+  });
+}
+
+// ── Detail panel ─────────────────────────────────────────────────────────
+function chipForId(id) {
+  const el = elementById[id];
+  if (!el) return `<span class="badge bg-secondary realizes-chip">${id}</span>`;
+  const color = layerColor(el.layer);
+  const badge = layerBadge(el.layer);
+  return `<span class="badge realizes-chip me-1 mb-1"
+               style="background:${color}22;color:${color};border:1px solid ${color}66"
+               data-nav="${id}"
+               title="${el.name}">
+            <span style="opacity:.7;font-size:.6rem">${badge}</span> ${id}
+          </span>`;
+}
+
+function renderDetail() {
+  const panel = document.getElementById('detail');
+  if (!selectedId || !elementById[selectedId]) {
+    panel.innerHTML = `<div class="empty-state text-center mt-5 pt-5">
+      <div style="font-size:3rem">🔍</div>
+      <p class="mt-2">Select an element from the tree.</p></div>`;
+    return;
+  }
+
+  const el    = elementById[selectedId];
+  const layer = layerById[el.layer];
+  const realizedBy = realizedByIndex[el.id] || [];
+
+  let rows = '';
+  if (el.inputs)  rows += `<tr><td class="text-muted pe-3">Inputs</td><td><code>${el.inputs}</code></td></tr>`;
+  if (el.outputs) rows += `<tr><td class="text-muted pe-3">Outputs</td><td><code>${el.outputs}</code></td></tr>`;
+  if (el.type)    rows += `<tr><td class="text-muted pe-3">Type</td><td>${el.type}</td></tr>`;
+  if (el.nature)  rows += `<tr><td class="text-muted pe-3">Nature</td><td>${el.nature}</td></tr>`;
+  if (el.kind)    rows += `<tr><td class="text-muted pe-3">Kind</td><td>${el.kind}</td></tr>`;
+  if (el.spec)    rows += `<tr><td class="text-muted pe-3">Spec</td><td><small>${el.spec}</small></td></tr>`;
+  if (el.verify)  rows += `<tr><td class="text-muted pe-3">Verify</td><td><small>${el.verify}</small></td></tr>`;
+
+  const realizesHtml = (el.realizes && el.realizes.length)
+    ? `<div class="mb-3">
+         <div class="section-title mb-2">
+           <i class="bi bi-arrow-down-circle me-1"></i> Realizes (→ lower layer)
+         </div>
+         <div>${el.realizes.map(chipForId).join('')}</div>
+       </div>` : '';
+
+  const realizedByHtml = realizedBy.length
+    ? `<div class="mb-3">
+         <div class="section-title mb-2">
+           <i class="bi bi-arrow-up-circle me-1"></i> Realized by (← upper layer)
+         </div>
+         <div>${realizedBy.map(r => chipForId(r.id)).join('')}</div>
+       </div>` : '';
+
+  const childrenHtml = (el.children && el.children.length)
+    ? `<div class="mb-3">
+         <div class="section-title mb-2">
+           <i class="bi bi-diagram-3 me-1"></i> Sub-elements
+         </div>
+         <div>${el.children.map(c => chipForId(c.id)).join('')}</div>
+       </div>` : '';
+
+  panel.innerHTML = `
+    <div class="card detail-card p-3 mb-3">
+      <div class="d-flex align-items-start gap-2 mb-3">
+        <span class="badge px-2 py-1 layer-header"
+              style="background:${layer.color};color:${layer.text}">
+          ${layer.badge}
+        </span>
+        <div>
+          <div class="fw-bold">${el.name}</div>
+          <small class="text-muted">${el.id}</small>
+        </div>
+      </div>
+
+      ${el.desc ? `<p class="text-secondary small mb-3">${el.desc}</p>` : ''}
+
+      ${rows ? `<table class="table table-sm table-borderless small mb-3">
+                  <tbody>${rows}</tbody></table>` : ''}
+
+      ${realizesHtml}
+      ${realizedByHtml}
+      ${childrenHtml}
+    </div>`;
+
+  // Wire navigation chips
+  panel.querySelectorAll('[data-nav]').forEach(chip =>
+    chip.addEventListener('click', () => {
+      const targetId = chip.dataset.nav;
+      const target   = elementById[targetId];
+      if (!target) return;
+      if (target.layer !== activeLayer) {
+        activeLayer = target.layer;
+        renderLayerNav();
+        renderTree();
+      }
+      selectedId = targetId;
+      renderDetail();
+      // Scroll tree to item and highlight
+      setTimeout(() => {
+        const node = document.querySelector(`[data-id="${targetId}"]`);
+        if (node) {
+          node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          const color = layerColor(activeLayer);
+          node.style.background = `${color}22`;
+          node.style.outline    = `2px solid ${color}66`;
+        }
+      }, 50);
+    })
+  );
+}
+
+// ── Search ───────────────────────────────────────────────────────────────
+document.getElementById('searchInput').addEventListener('input', function() {
+  searchQuery = this.value.trim();
+  renderTree();
+});
+
+// ── Resize handle ────────────────────────────────────────────────────────
+(function() {
+  const handle = document.getElementById('resizer');
+  const sidebar = document.getElementById('sidebar');
+  let dragging = false, startX, startW;
+  handle.addEventListener('mousedown', e => {
+    dragging = true; startX = e.clientX; startW = sidebar.offsetWidth;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const w = Math.max(220, Math.min(600, startW + e.clientX - startX));
+    sidebar.style.width = w + 'px';
+  });
+  document.addEventListener('mouseup', () => {
+    dragging = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  });
+})();
+
+// ── Init ─────────────────────────────────────────────────────────────────
+renderStats();
+renderLayerNav();
+renderTree();
+renderDetail();
+</script>
+</body>
+</html>
+"""
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+def main():
+    script_dir = Path(__file__).parent
+    out_path   = script_dir / "model_viewer.html"
+
+    model_json = json.dumps(MODEL, indent=2, ensure_ascii=False)
+    html = HTML_TEMPLATE.replace("__MODEL_JSON__", model_json)
+    out_path.write_text(html, encoding="utf-8")
+
+    # Count elements
+    total = sum(
+        len(g["elements"])
+        for l in MODEL["layers"]
+        for g in l["groups"]
+    )
+    print(f"Written:  {out_path}")
+    print(f"Elements: {total} across {len(MODEL['layers'])} layers")
+    print()
+    print("View options:")
+    print("  • Open directly:  open model_viewer.html")
+    print("  • Via mkdocs:     (already served at /systems_engineering/MBSE_workspace/model_viewer.html)")
+    print()
+    print("Layers included:")
+    for l in MODEL["layers"]:
+        n = sum(len(g["elements"]) for g in l["groups"])
+        print(f"  {l['badge']:6}  {n:3} elements — {l['name']}")
+
+
+if __name__ == "__main__":
+    main()
