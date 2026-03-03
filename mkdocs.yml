@@ -54,6 +54,7 @@ nav:
       - EPBS Architecture:
           - Overview: systems_engineering/05_epbs/README.md
           - Configuration Items: systems_engineering/05_epbs/configuration_items.md
+      - Requirements Register: systems_engineering/requirements_register.md
       - Capella Model: systems_engineering/MBSE_workspace/README.md
   - OSR@JPL: https://jplopensourcerover.com/
 
