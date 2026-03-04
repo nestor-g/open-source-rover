@@ -60,8 +60,24 @@
 </head>
 <body>
 
+<!-- ── Tool nav strip ─────────────────────────────────────────────────── -->
+<div style="background:#fff;border-bottom:1px solid #dee2e6;padding:.4rem 1rem;
+            display:flex;align-items:center;gap:.75rem;font-size:.82rem;">
+  <span style="font-weight:600;color:#212529;display:flex;align-items:center;gap:.3rem;">
+    <i class="bi bi-diagram-2-fill text-primary"></i> MBSE Model
+  </span>
+  <span style="color:#dee2e6;">|</span>
+  <a href="../06_safety/safety_report.html" style="color:#6c757d;text-decoration:none;display:flex;align-items:center;gap:.3rem;">
+    <i class="bi bi-shield-fill-check text-danger"></i> Safety Dashboard
+  </a>
+  <span style="color:#dee2e6;">|</span>
+  <a href="../06_safety/safety_report.html#tab-scenarios" style="color:#6c757d;text-decoration:none;display:flex;align-items:center;gap:.3rem;">
+    <i class="bi bi-graph-up"></i> Parametric Sweep
+  </a>
+</div>
+
 <!-- ── Header ─────────────────────────────────────────────────────────── -->
-<div class="px-3 pt-3 pb-2 border-bottom bg-white">
+<div class="px-3 pt-2 pb-2 border-bottom bg-white">
   <div class="d-flex align-items-center gap-2 mb-2">
     <span style="font-size:1.4rem">🛸</span>
     <div>
@@ -70,9 +86,13 @@
     </div>
     <div class="ms-auto d-flex gap-2 align-items-center">
       <div id="statsBar" class="d-flex gap-2"></div>
-      <a class="btn btn-sm btn-outline-danger ms-1" href="../06_safety/safety_report.html"
-         title="Open Safety Dashboard">
-        <i class="bi bi-shield-check me-1"></i>Safety
+      <a class="btn btn-sm btn-outline-danger ms-1" href="../06_safety/safety_report.html#tab-hazards"
+         title="Open Safety Dashboard — Hazard Log">
+        <i class="bi bi-shield-check me-1"></i>Hazards
+      </a>
+      <a class="btn btn-sm btn-outline-primary ms-1" href="../06_safety/safety_report.html#tab-scenarios"
+         title="Open Parametric Sweep">
+        <i class="bi bi-graph-up me-1"></i>Sweep
       </a>
       <button class="btn btn-sm btn-outline-secondary ms-1" onclick="openGraph()"
               title="Open traceability graph view">
@@ -1463,6 +1483,45 @@ function renderDetail() {
   if (el.spec)    rows += `<tr><td class="text-muted pe-3">Spec</td><td><small>${el.spec}</small></td></tr>`;
   if (el.verify)  rows += `<tr><td class="text-muted pe-3">Verify</td><td><small>${el.verify}</small></td></tr>`;
 
+  // Safety cross-references: map LC/SF element IDs → hazards they mitigate
+  const SAFETY_XREF = {
+    'LC-01': {hazards:['H-04'],       label:'Comm watchdog (H-04)'},
+    'LC-02': {hazards:['H-05'],       label:'Velocity bounds (H-05)'},
+    'LC-03': {hazards:['H-01','H-02'],label:'Motor & tilt kinematics (H-01, H-02)'},
+    'LC-04': {hazards:['H-02'],       label:'IMU tilt sensing (H-02)'},
+    'LC-05': {hazards:['H-01','H-02','H-03','H-04'], label:'Fault monitor — primary safety component'},
+    'LC-06': {hazards:['H-03'],       label:'Battery voltage monitor (H-03)'},
+    'LC-07': {hazards:['H-08'],       label:'Node health diagnostics (H-08)'},
+    'LC-08': {hazards:['H-07'],       label:'Payload current protection (H-07)'},
+    'SF-01': {hazards:['H-04','H-05'],label:'Command watchdog + velocity clamp'},
+    'SF-02': {hazards:['H-01'],       label:'Motor drive control'},
+    'SF-03': {hazards:['H-03'],       label:'Power management'},
+    'SF-04': {hazards:['H-02'],       label:'State sensing (IMU)'},
+    'SF-06': {hazards:['H-01','H-02','H-03','H-04'], label:'Fault detection & safe stop'},
+    'SF-07': {hazards:['H-07'],       label:'Payload interface power limiting'},
+  };
+
+  const xref = SAFETY_XREF[el.id];
+  const safetyHtml = xref
+    ? `<div class="mb-3">
+         <div class="section-title mb-2">
+           <i class="bi bi-shield-fill-check text-danger me-1"></i> Safety Cross-Reference
+         </div>
+         <div class="small text-muted mb-1">${xref.label}</div>
+         <div class="d-flex flex-wrap gap-1">
+           ${xref.hazards.map(h =>
+             `<a href="../06_safety/safety_report.html#tab-hazards" target="_blank"
+                 class="badge text-decoration-none"
+                 style="background:#f8d7da;color:#842029;font-size:.72rem"
+                 title="View ${h} in Safety Dashboard">${h}</a>`
+           ).join('')}
+           <a href="../06_safety/safety_report.html#tab-scenarios" target="_blank"
+              class="badge text-decoration-none ms-1"
+              style="background:#cff4fc;color:#055160;font-size:.72rem"
+              title="View parametric sweep">Sweep ↗</a>
+         </div>
+       </div>` : '';
+
   const realizesHtml = (el.realizes && el.realizes.length)
     ? `<div class="mb-3">
          <div class="section-title mb-2">
@@ -1505,6 +1564,7 @@ function renderDetail() {
       ${rows ? `<table class="table table-sm table-borderless small mb-3">
                   <tbody>${rows}</tbody></table>` : ''}
 
+      ${safetyHtml}
       ${realizesHtml}
       ${realizedByHtml}
       ${childrenHtml}
@@ -1826,6 +1886,36 @@ renderStats();
 renderLayerNav();
 renderTree();
 renderDetail();
+
+// ── Hash-based element selection ──────────────────────────────────────────
+// Allows safety_report.html to deep-link into the model viewer.
+// e.g. model_viewer.html#lc05  or  model_viewer.html#LC-05
+(function() {
+  function selectFromHash() {
+    if (!location.hash) return;
+    // Normalise: #lc05 → "LC-05", #LC-05 → "LC-05", #h01 → "H-01" etc.
+    let raw = location.hash.slice(1).toUpperCase();
+    // Insert hyphen if missing: LC05 → LC-05, H01 → H-01, SF02 → SF-02
+    raw = raw.replace(/^([A-Z]+)(\d+)$/, (_, pre, num) => pre + '-' + num);
+    if (elementById[raw]) {
+      select(raw);
+      // Switch to the layer containing this element
+      const el = elementById[raw];
+      if (el.layer && el.layer !== activeLayer) {
+        activeLayer = el.layer;
+        renderLayerNav();
+        renderTree();
+      }
+      // Scroll sidebar to show the selected item
+      setTimeout(() => {
+        const item = document.querySelector('.tree-item.selected');
+        if (item) item.scrollIntoView({block:'center'});
+      }, 80);
+    }
+  }
+  selectFromHash();
+  window.addEventListener('hashchange', selectFromHash);
+})();
 </script>
 </body>
 </html>

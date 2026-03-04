@@ -25,8 +25,18 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
+
+# scenic_module lives alongside this script
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+try:
+    from scenic_module import quick_sweep, SweepReport
+    from scenic_module.parameter_space import ALL_PARAMETERS, PARAMETER_GROUPS
+    _HAS_SWEEP = True
+except ImportError:
+    _HAS_SWEEP = False
 
 # ---------------------------------------------------------------------------
 # Hazard log data   (source: hazard_log.md)
@@ -301,6 +311,59 @@ def _to_json() -> dict:
     }
 
 
+def _build_scenic_params_js() -> str:
+    """Build the SCENIC_PARAMS JS constant from parameter_space.py (or fallback)."""
+    if not _HAS_SWEEP:
+        # Hardcoded fallback matching the previous version
+        return """\
+const SCENIC_PARAMS = {
+  motor_stall:      [{name:'Motor Current',    unit:'A',   min:10.0, max:13.0, absMin:8,   absMax:15,  thresholds:[{v:10.0, lbl:'Trip ≥10 A'}]}],
+  battery_low:      [{name:'Bus Voltage',      unit:'V',   min:9.5,  max:11.5, absMin:9,   absMax:13,  thresholds:[{v:11.0, lbl:'Warn ≤11 V'},{v:10.5, lbl:'Stop ≤10.5 V'}]}],
+  tilt_risk:        [{name:'Roll Angle',       unit:'°',  min:20,   max:45,   absMin:0,   absMax:60,  thresholds:[{v:35,   lbl:'Stop ≥35°'}]}],
+  comm_loss:        [{name:'Silence Duration', unit:'s',   min:0.5,  max:3.0,  absMin:0,   absMax:4,   thresholds:[{v:1.0,  lbl:'Halt ≥1 s'}]}],
+  nominal_traverse: [{name:'Max Speed',        unit:'m/s', min:0.1,  max:0.35, absMin:0,   absMax:0.5, thresholds:[{v:0.4,  lbl:'Limit 0.4 m/s'}]}],
+};"""
+
+    # Build from parameter_space.py — one entry per scenario tag
+    scenario_params: dict = {}
+    for p in ALL_PARAMETERS.values():
+        for scenario_tag in p.scenarios:
+            if scenario_tag not in scenario_params:
+                scenario_params[scenario_tag] = []
+            thresh_list = [
+                {"v": v, "lbl": f"{k.capitalize()} {v} {p.unit}"}
+                for k, v in p.thresholds.items()
+            ]
+            scenario_params[scenario_tag].append({
+                "name":      p.name,
+                "unit":      p.unit,
+                "min":       p.scenic_min,
+                "max":       p.scenic_max,
+                "absMin":    p.phys_min,
+                "absMax":    p.phys_max,
+                "thresholds": thresh_list,
+            })
+
+    lines = ["const SCENIC_PARAMS = {"]
+    for tag, params in scenario_params.items():
+        params_js = json.dumps(params, ensure_ascii=False)
+        lines.append(f"  {tag}: {params_js},")
+    lines.append("};")
+    return "\n".join(lines)
+
+
+def _run_sweep_json(n: int = 300) -> str:
+    """Run a quick parametric sweep and return its JSON string."""
+    if not _HAS_SWEEP:
+        return "null"
+    try:
+        result = quick_sweep(n=n, seed=42)
+        return SweepReport(result).to_json()
+    except Exception as exc:
+        print(f"  [warn] Sweep failed: {exc}")
+        return "null"
+
+
 # ---------------------------------------------------------------------------
 # HTML template
 # ---------------------------------------------------------------------------
@@ -354,17 +417,25 @@ tr.fmea-edited td { background-color:#e7f1ff !important; }
 .param-tick  { position:absolute; font-size:.7rem; top:-18px; transform:translateX(-50%); color:#6c757d; }
 .param-thresh-lbl { position:absolute; font-size:.7rem; bottom:-16px; transform:translateX(-50%); color:#dc3545; font-weight:600; white-space:nowrap; }
 .param-vals  { font-size:.78rem; color:#495057; margin-top:20px; }
+/* tool nav strip */
+.tool-nav { background:#fff; border-bottom:1px solid #dee2e6; padding:.4rem 1.5rem;
+            display:flex; align-items:center; gap:.75rem; font-size:.82rem; }
+.tool-nav a { color:#6c757d; text-decoration:none; display:flex; align-items:center; gap:.3rem; }
+.tool-nav a:hover { color:#0d6efd; }
+.tool-nav .active-tool { color:#212529; font-weight:600; }
+.tool-nav .sep { color:#dee2e6; }
+.tool-nav .sweep-badge { margin-left:auto; font-size:.75rem; }
+/* sweep panel */
+.sweep-stat { text-align:center; padding:.5rem .75rem; background:#f8f9fa;
+              border-radius:6px; min-width:80px; }
+.sweep-stat-val { font-size:1.4rem; font-weight:700; line-height:1.1; }
+.sweep-stat-lbl { font-size:.72rem; color:#6c757d; }
 """
 
 _SCRIPT = """\
-const D = window.__OSR_SAFETY__;
-const SCENIC_PARAMS = {
-  motor_stall:      [{name:'Motor Current',    unit:'A',   min:10.0, max:13.0, absMin:8,   absMax:15,  thresholds:[{v:10.0, lbl:'Trip \u226510 A'}]}],
-  battery_low:      [{name:'Bus Voltage',      unit:'V',   min:9.5,  max:11.5, absMin:9,   absMax:13,  thresholds:[{v:11.0, lbl:'Warn \u226411 V'},{v:10.5, lbl:'Stop \u226410.5 V'}]}],
-  tilt_risk:        [{name:'Roll Angle',       unit:'\u00b0',  min:20,   max:45,   absMin:0,   absMax:60,  thresholds:[{v:35,   lbl:'Stop \u226535\u00b0'}]}],
-  comm_loss:        [{name:'Silence Duration', unit:'s',   min:0.5,  max:3.0,  absMin:0,   absMax:4,   thresholds:[{v:1.0,  lbl:'Halt \u22651 s'}]}],
-  nominal_traverse: [{name:'Max Speed',        unit:'m/s', min:0.1,  max:0.35, absMin:0,   absMax:0.5, thresholds:[{v:0.4,  lbl:'Limit 0.4 m/s'}]}],
-};
+const D  = window.__OSR_SAFETY__;
+const SW = window.__OSR_SWEEP__;   // parametric sweep results (null if unavailable)
+__SCENIC_PARAMS__
 let fState = {}; // editable FMEA overrides: {id: {s, o, d}}
 function getSOD(f) { const st = fState[f.id]; return st || {s:f.s, o:f.o, d:f.d}; }
 
@@ -454,8 +525,14 @@ function renderHazards() {
 
   let rows = data.map(h => {
     const reqs = h.reqs.map(r => '<code>' + r + '</code>').join(' ');
+    const mvLink = '../MBSE_workspace/model_viewer.html#' + h.id.toLowerCase().replace('-','');
+    const scenLink = h.scenario
+      ? '<a href="#tab-scenarios" class="text-decoration-none" data-scenario="' + h.scenario + '">'
+        + '<code style="font-size:.75rem">' + h.scenario + '.scenic</code></a>'
+      : '—';
     return '<tr>'
-      + '<td><strong>' + h.id + '</strong></td>'
+      + '<td><strong><a href="' + mvLink + '" class="text-decoration-none" title="View in MBSE Model Viewer" target="_blank">'
+        + h.id + ' <i class="bi bi-box-arrow-up-right" style="font-size:.6rem;opacity:.5"></i></a></strong></td>'
       + '<td>' + h.title + '</td>'
       + '<td>' + h.cause + '</td>'
       + '<td>' + h.effect + '</td>'
@@ -463,7 +540,7 @@ function renderHazards() {
       + '<td class="' + riskClass(h.s_post, h.l_post) + '">' + riskLabel(h.s_post, h.l_post) + '</td>'
       + '<td>' + h.mitigation + '</td>'
       + '<td>' + reqs + '</td>'
-      + '<td>' + (h.scenario || '—') + '</td>'
+      + '<td>' + scenLink + '</td>'
       + '</tr>';
   }).join('');
 
@@ -642,12 +719,13 @@ function renderScenarios() {
     + '<thead class="table-dark">' + head + '</thead><tbody>' + rows + '</tbody></table></div>'
     + '<p class="text-muted" style="font-size:.8rem">✓ = scenario explicitly exercises this hazard\'s boundary conditions.</p>';
 
-  // Render parameter range bars
+  // Render parameter range bars (one section per scenario, with scroll anchor)
   let rangeHtml = '';
   D.scenarios.forEach(sc => {
     const params = SCENIC_PARAMS[sc.id];
     if (!params) return;
-    rangeHtml += '<div class="mb-5"><h6 class="mb-3"><i class="bi bi-play-circle me-1"></i>'
+    rangeHtml += '<div class="mb-5" id="range-' + sc.id + '">'
+      + '<h6 class="mb-3"><i class="bi bi-play-circle me-1"></i>'
       + sc.name + ' <code style="font-size:.8rem">' + sc.id + '.scenic</code></h6>'
       + '<div class="row g-4">'
       + params.map(p => '<div class="col-md-4">' + renderRangeBar(p) + '</div>').join('')
@@ -723,6 +801,96 @@ function wireFilters() {
   if (rstBtn) rstBtn.addEventListener('click', resetFMEA);
 }
 
+// ── Parametric sweep panel ────────────────────────────────────────────────
+function renderSweep() {
+  const wrap = document.getElementById('sweep-wrap');
+  if (!wrap) return;
+  if (!SW) {
+    wrap.innerHTML = '<p class="text-muted" style="font-size:.85rem">Sweep data not embedded — re-run <code>generate_safety_report.py</code> with scenic_module available.</p>';
+    return;
+  }
+  const hPct  = (SW.summary.hazard_rate * 100).toFixed(1);
+  const hCls  = SW.summary.hazard_rate > 0.5 ? 'text-danger' : SW.summary.hazard_rate > 0.1 ? 'text-warning' : 'text-success';
+  const stats = '<div class="d-flex gap-3 mb-3 flex-wrap">'
+    + `<div class="sweep-stat"><div class="sweep-stat-val ${hCls}">${hPct}%</div><div class="sweep-stat-lbl">Hazard Rate</div></div>`
+    + `<div class="sweep-stat"><div class="sweep-stat-val text-danger">${SW.summary.n_hazardous}</div><div class="sweep-stat-lbl">Hazardous</div></div>`
+    + `<div class="sweep-stat"><div class="sweep-stat-val text-warning">${SW.summary.n_boundary}</div><div class="sweep-stat-lbl">Boundary</div></div>`
+    + `<div class="sweep-stat"><div class="sweep-stat-val text-success">${SW.summary.n_safe}</div><div class="sweep-stat-lbl">Safe</div></div>`
+    + `<div class="sweep-stat"><div class="sweep-stat-val">${SW.summary.n_total}</div><div class="sweep-stat-lbl">Total Samples</div></div>`
+    + '</div>';
+
+  const viols = SW.summary.violation_counts || {};
+  const bars  = Object.entries(viols).map(([cid, cnt]) => {
+    const frac = cnt / SW.summary.n_total;
+    const pct  = (frac * 100).toFixed(1);
+    const barCls = frac > 0.5 ? 'bg-danger' : frac > 0.2 ? 'bg-warning' : 'bg-success';
+    return `<div class="mb-2">
+      <div class="d-flex justify-content-between" style="font-size:.78rem">
+        <strong>${cid}</strong><span>${cnt}&thinsp;/&thinsp;${SW.summary.n_total} (${pct}%)</span>
+      </div>
+      <div class="progress" style="height:12px">
+        <div class="progress-bar ${barCls}" style="width:${pct}%"></div>
+      </div></div>`;
+  }).join('');
+
+  const pKeys = ['motor_current_peak','battery_voltage','roll_deg','cmd_vel_age_sec','linear_velocity'];
+  const pHdrs = pKeys.map(k => '<th>' + k.replace(/_/g,' ') + '</th>').join('');
+  const topRows = (SW.top_hazardous || []).slice(0, 8).map((pt, i) => {
+    const violated = (pt.violated_constraints || []).join(', ') || '—';
+    const hPct2 = (pt.hazard_level * 100).toFixed(1);
+    const hCls2 = pt.hazard_level > 0.3 ? 'text-danger fw-bold' : 'text-warning';
+    const cells = pKeys.map(k => {
+      const v = pt.params[k];
+      return '<td>' + (v !== undefined ? (+v).toFixed(2) : '—') + '</td>';
+    }).join('');
+    return `<tr><td>${i+1}</td><td class="${hCls2}">${hPct2}%</td>`
+      + `<td><code style="font-size:.72rem">${violated}</code></td>${cells}</tr>`;
+  }).join('');
+
+  wrap.innerHTML = stats
+    + '<div class="row g-3">'
+    + '<div class="col-md-5"><h6 style="font-size:.83rem">Constraint Violation Rate</h6>'
+    + (bars || '<p class="text-muted">No violations detected.</p>')
+    + '</div>'
+    + '<div class="col-md-7"><h6 style="font-size:.83rem">Top Hazardous Scenario Points</h6>'
+    + '<div style="overflow-x:auto"><table class="table table-sm table-bordered" style="font-size:.76rem">'
+    + '<thead class="table-dark"><tr><th>#</th><th>Hazard%</th><th>Violated</th>' + pHdrs + '</tr></thead>'
+    + '<tbody>' + topRows + '</tbody></table></div>'
+    + '</div></div>'
+    + `<p class="text-muted" style="font-size:.76rem">LHS sweep — ${SW.sweep.n_actual} samples, seed=${SW.sweep.seed}. `
+    + 'Sweeps the full physical OA/OE range (not just the Scenic sampled range). '
+    + '<a href="scenarios/sweep/" class="text-decoration-none">Generated .scenic files →</a></p>';
+
+  // Update sweep badge in tool nav
+  const badge = document.getElementById('sweep-nav-stat');
+  if (badge) badge.textContent = `Sweep: ${SW.sweep.n_actual} pts · ${hPct}% hazard rate`;
+}
+
+// ── Scenario → Sweep cross-link ───────────────────────────────────────────
+function wireScenarioLinks() {
+  document.querySelectorAll('[data-scenario]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.preventDefault();
+      const tag = el.dataset.scenario;
+      // Switch to scenarios tab, then scroll to the relevant range bar
+      const tabEl = document.querySelector('[href="#tab-scenarios"]');
+      if (tabEl) bootstrap.Tab.getOrCreateInstance(tabEl).show();
+      setTimeout(() => {
+        const target = document.getElementById('range-' + tag);
+        if (target) target.scrollIntoView({behavior:'smooth', block:'center'});
+      }, 120);
+    });
+  });
+}
+
+// ── Hash-based tab routing ────────────────────────────────────────────────
+function routeHash() {
+  const hash = location.hash.slice(1);
+  if (!hash) return;
+  const el = document.querySelector('[href="#' + hash + '"]');
+  if (el) bootstrap.Tab.getOrCreateInstance(el).show();
+}
+
 // ── Boot ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   renderSummary();
@@ -731,21 +899,41 @@ document.addEventListener('DOMContentLoaded', () => {
   renderFMEA();
   renderFTA();
   renderScenarios();
+  renderSweep();
   renderActions();
   wireFilters();
+  wireScenarioLinks();
+  routeHash();
+
+  // Update hash on tab change for deep-linking
+  document.querySelectorAll('[data-bs-toggle="tab"]').forEach(el => {
+    el.addEventListener('shown.bs.tab', e => {
+      const target = e.target.getAttribute('href');
+      history.replaceState(null, '', target);
+    });
+  });
 });
 """
 
 
-def generate_report() -> str:
+def generate_report(sweep_n: int = 300) -> str:
     data = _to_json()
-    data_json = json.dumps(data, ensure_ascii=False, indent=2)
-    date_str  = datetime.now().strftime("%Y-%m-%d")
-    all_sfs   = sorted({f[1] for f in FMEA})
-    sf_opts   = "".join(f'<option value="{sf}">{sf}</option>' for sf in all_sfs)
+    data_json  = json.dumps(data, ensure_ascii=False, indent=2)
+    date_str   = datetime.now().strftime("%Y-%m-%d")
+    all_sfs    = sorted({f[1] for f in FMEA})
+    sf_opts    = "".join(f'<option value="{sf}">{sf}</option>' for sf in all_sfs)
 
     high_count = sum(1 for h in HAZARDS if h[6] * h[7] > 9)
     fm_high    = sum(1 for f in FMEA if f[5] * f[6] * f[7] > 16)
+
+    # Run parametric sweep and embed result
+    print(f"  Running parametric sweep (n={sweep_n}) …", end=" ", flush=True)
+    sweep_json = _run_sweep_json(n=sweep_n)
+    print("done" if sweep_json != "null" else "skipped (scenic_module not found)")
+
+    # Resolve dynamic JS constant from parameter_space.py
+    scenic_params_js = _build_scenic_params_js()
+    script = _SCRIPT.replace("__SCENIC_PARAMS__", scenic_params_js)
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -767,10 +955,16 @@ def generate_report() -> str:
         <h1><i class="bi bi-shield-check me-2"></i>JPL Open Source Rover — Safety Dashboard</h1>
         <div class="meta">OSR-SAF-REPORT-001 &nbsp;|&nbsp; DRAFT &nbsp;|&nbsp; Generated: {date_str}</div>
       </div>
-      <a class="btn btn-sm btn-light mt-1" href="../MBSE_workspace/model_viewer.html"
-         title="Open MBSE Model Viewer">
-        <i class="bi bi-diagram-2-fill me-1"></i>MBSE Model
-      </a>
+      <div class="d-flex gap-2 mt-1">
+        <a class="btn btn-sm btn-light" href="../MBSE_workspace/model_viewer.html"
+           title="Open MBSE Model Viewer">
+          <i class="bi bi-diagram-2-fill me-1"></i>MBSE Model
+        </a>
+        <a class="btn btn-sm btn-outline-light" href="#tab-scenarios"
+           title="Jump to Scenarios &amp; Sweep">
+          <i class="bi bi-graph-up me-1"></i>Sweep
+        </a>
+      </div>
     </div>
     <div class="mt-2">
       <span class="badge bg-light text-dark badge-stat me-1">
@@ -799,6 +993,22 @@ def generate_report() -> str:
       </span>
     </div>
   </div>
+</div>
+
+<!-- Tool nav strip -->
+<div class="tool-nav">
+  <a href="../MBSE_workspace/model_viewer.html">
+    <i class="bi bi-diagram-2-fill"></i> MBSE Model
+  </a>
+  <span class="sep">|</span>
+  <span class="active-tool">
+    <i class="bi bi-shield-fill-check text-danger"></i> Safety Dashboard
+  </span>
+  <span class="sep">|</span>
+  <a href="#tab-scenarios" data-bs-toggle="tab">
+    <i class="bi bi-graph-up"></i> Parametric Sweep
+  </a>
+  <span class="sweep-badge text-muted" id="sweep-nav-stat"></span>
 </div>
 
 <div class="container-fluid px-4">
@@ -962,7 +1172,7 @@ def generate_report() -> str:
           <div id="scenarios-wrap"></div>
         </div>
       </div>
-      <div class="card">
+      <div class="card mb-3">
         <div class="card-body">
           <h5 class="card-title">Scenic Parameter Ranges vs Safety Thresholds</h5>
           <p class="text-muted" style="font-size:.83rem">
@@ -970,9 +1180,28 @@ def generate_report() -> str:
             <span style="display:inline-block;width:18px;height:10px;background:#0d6efd;opacity:.7;border-radius:2px;vertical-align:middle"></span>
             vs safety threshold
             <span style="display:inline-block;width:2px;height:14px;background:#dc3545;vertical-align:middle"></span>.
-            Values from <code>.scenic</code> source files — no Scenic installation required.
+            Values from <code>parameter_space.py</code> — no Scenic installation required.
           </p>
           <div id="scenic-ranges-wrap"></div>
+        </div>
+      </div>
+
+      <!-- Parametric Sweep Panel -->
+      <div class="card border-primary">
+        <div class="card-header bg-primary text-white d-flex align-items-center justify-content-between">
+          <span><i class="bi bi-graph-up me-2"></i>Parametric OA/OE Sweep
+            <span class="badge bg-light text-primary ms-2" style="font-size:.72rem">scenic_module</span>
+          </span>
+          <span style="font-size:.78rem;opacity:.85">LHS · n={sweep_n} · all parameters swept</span>
+        </div>
+        <div class="card-body">
+          <p class="text-muted mb-3" style="font-size:.83rem">
+            Latin Hypercube Sampling across the full physical OA/OE parameter space —
+            wider than the Scenic sampled ranges above. Each point is evaluated against all
+            safety constraints (H-01..H-05). Hazardous = at least one constraint violated.
+            <a href="../MBSE_workspace/model_viewer.html" class="ms-1">MBSE constraints ↗</a>
+          </p>
+          <div id="sweep-wrap"></div>
         </div>
       </div>
     </div>
@@ -1001,8 +1230,9 @@ def generate_report() -> str:
 </div>
 
 <script>window.__OSR_SAFETY__ = {data_json};</script>
+<script>window.__OSR_SWEEP__   = {sweep_json};</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script>{_SCRIPT}</script>
+<script>{script}</script>
 </body>
 </html>
 """
