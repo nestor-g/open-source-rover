@@ -84,8 +84,8 @@ tr.fmea-edited td { background-color:#e7f1ff !important; }
            title="Open MBSE Model Viewer">
           <i class="bi bi-diagram-2-fill me-1"></i>MBSE Model
         </a>
-        <a class="btn btn-sm btn-outline-light" href="#tab-scenarios"
-           title="Jump to Scenarios &amp; Sweep">
+        <a class="btn btn-sm btn-outline-light" href="javascript:void(0)"
+           title="Jump to Scenarios &amp; Sweep" onclick="activateScenariosTab()">
           <i class="bi bi-graph-up me-1"></i>Sweep
         </a>
       </div>
@@ -129,7 +129,7 @@ tr.fmea-edited td { background-color:#e7f1ff !important; }
     <i class="bi bi-shield-fill-check text-danger"></i> Safety Dashboard
   </span>
   <span class="sep">|</span>
-  <a href="#tab-scenarios" data-bs-toggle="tab">
+  <a href="javascript:void(0)" id="tool-nav-sweep" onclick="activateScenariosTab()">
     <i class="bi bi-graph-up"></i> Parametric Sweep
   </a>
   <span class="sweep-badge text-muted" id="sweep-nav-stat"></span>
@@ -11549,6 +11549,12 @@ const SCENIC_PARAMS = {
   comm_loss: [{"name": "Command Silence Duration", "unit": "s", "min": 0.5, "max": 3.0, "absMin": 0.0, "absMax": 5.0, "thresholds": [{"v": 1.0, "lbl": "Watchdog 1.0 s"}]}, {"name": "Wi-Fi Signal Strength", "unit": "dBm", "min": -85.0, "max": -30.0, "absMin": -95.0, "absMax": -20.0, "thresholds": [{"v": -85.0, "lbl": "Dropout -85.0 dBm"}]}],
   nominal_traverse: [{"name": "Rover Linear Speed", "unit": "m/s", "min": 0.1, "max": 0.35, "absMin": 0.0, "absMax": 0.5, "thresholds": [{"v": 0.4, "lbl": "Limit 0.4 m/s"}]}, {"name": "Rover Angular Speed", "unit": "rad/s", "min": -0.8, "max": 0.8, "absMin": -1.5, "absMax": 1.5, "thresholds": [{"v": 1.0, "lbl": "Limit 1.0 rad/s"}]}, {"name": "Battery State of Charge", "unit": "%", "min": 10.0, "max": 100.0, "absMin": 0.0, "absMax": 100.0, "thresholds": [{"v": 15.0, "lbl": "Low 15.0 %"}]}, {"name": "Terrain Slope", "unit": "°", "min": 0.0, "max": 25.0, "absMin": 0.0, "absMax": 45.0, "thresholds": [{"v": 30.0, "lbl": "Max_traversable 30.0 °"}]}, {"name": "Obstacle Count", "unit": "count", "min": 0.0, "max": 5.0, "absMin": 0.0, "absMax": 10.0, "thresholds": [{"v": 5.0, "lbl": "High_density 5.0 count"}]}, {"name": "Mission Duration", "unit": "min", "min": 5.0, "max": 60.0, "absMin": 0.0, "absMax": 120.0, "thresholds": [{"v": 45.0, "lbl": "Max_rated 45.0 min"}]}],
 };
+// ── Tab helpers (global — available before DOMContentLoaded) ───────────────
+function activateScenariosTab() {
+  var t = document.querySelector('#mainTabs [href="#tab-scenarios"]');
+  if (t) bootstrap.Tab.getOrCreateInstance(t).show();
+}
+
 let fState = {}; // editable FMEA overrides: {id: {s, o, d}}
 function getSOD(f) { const st = fState[f.id]; return st || {s:f.s, o:f.o, d:f.d}; }
 
@@ -11830,7 +11836,7 @@ function renderScenarios() {
   document.getElementById('scenarios-wrap').innerHTML =
     '<div style="overflow-x:auto"><table class="table table-sm table-bordered">'
     + '<thead class="table-dark">' + head + '</thead><tbody>' + rows + '</tbody></table></div>'
-    + '<p class="text-muted" style="font-size:.8rem">✓ = scenario explicitly exercises this hazard's boundary conditions.</p>';
+    + '<p class="text-muted" style="font-size:.8rem">&#10003; = scenario explicitly exercises the boundary conditions of that hazard.</p>';
 
   // Render parameter range bars (one section per scenario, with scroll anchor)
   let rangeHtml = '';
@@ -11986,8 +11992,7 @@ function wireScenarioLinks() {
       e.preventDefault();
       const tag = el.dataset.scenario;
       // Switch to scenarios tab, then scroll to the relevant range bar
-      const tabEl = document.querySelector('[href="#tab-scenarios"]');
-      if (tabEl) bootstrap.Tab.getOrCreateInstance(tabEl).show();
+      activateScenariosTab();
       setTimeout(() => {
         const target = document.getElementById('range-' + tag);
         if (target) target.scrollIntoView({behavior:'smooth', block:'center'});
@@ -12000,7 +12005,9 @@ function wireScenarioLinks() {
 function routeHash() {
   const hash = location.hash.slice(1);
   if (!hash) return;
-  const el = document.querySelector('[href="#' + hash + '"]');
+  // Only look inside #mainTabs so we always get the real tab trigger, not
+  // other anchors (e.g. tool-nav links) that share the same href.
+  const el = document.querySelector('#mainTabs [href="#' + hash + '"]');
   if (el) bootstrap.Tab.getOrCreateInstance(el).show();
 }
 

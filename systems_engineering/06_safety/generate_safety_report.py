@@ -436,6 +436,12 @@ _SCRIPT = """\
 const D  = window.__OSR_SAFETY__;
 const SW = window.__OSR_SWEEP__;   // parametric sweep results (null if unavailable)
 __SCENIC_PARAMS__
+// ── Tab helpers (global — available before DOMContentLoaded) ───────────────
+function activateScenariosTab() {
+  var t = document.querySelector('#mainTabs [href="#tab-scenarios"]');
+  if (t) bootstrap.Tab.getOrCreateInstance(t).show();
+}
+
 let fState = {}; // editable FMEA overrides: {id: {s, o, d}}
 function getSOD(f) { const st = fState[f.id]; return st || {s:f.s, o:f.o, d:f.d}; }
 
@@ -717,7 +723,7 @@ function renderScenarios() {
   document.getElementById('scenarios-wrap').innerHTML =
     '<div style="overflow-x:auto"><table class="table table-sm table-bordered">'
     + '<thead class="table-dark">' + head + '</thead><tbody>' + rows + '</tbody></table></div>'
-    + '<p class="text-muted" style="font-size:.8rem">✓ = scenario explicitly exercises this hazard\'s boundary conditions.</p>';
+    + '<p class="text-muted" style="font-size:.8rem">&#10003; = scenario explicitly exercises the boundary conditions of that hazard.</p>';
 
   // Render parameter range bars (one section per scenario, with scroll anchor)
   let rangeHtml = '';
@@ -873,8 +879,7 @@ function wireScenarioLinks() {
       e.preventDefault();
       const tag = el.dataset.scenario;
       // Switch to scenarios tab, then scroll to the relevant range bar
-      const tabEl = document.querySelector('[href="#tab-scenarios"]');
-      if (tabEl) bootstrap.Tab.getOrCreateInstance(tabEl).show();
+      activateScenariosTab();
       setTimeout(() => {
         const target = document.getElementById('range-' + tag);
         if (target) target.scrollIntoView({behavior:'smooth', block:'center'});
@@ -887,7 +892,9 @@ function wireScenarioLinks() {
 function routeHash() {
   const hash = location.hash.slice(1);
   if (!hash) return;
-  const el = document.querySelector('[href="#' + hash + '"]');
+  // Only look inside #mainTabs so we always get the real tab trigger, not
+  // other anchors (e.g. tool-nav links) that share the same href.
+  const el = document.querySelector('#mainTabs [href="#' + hash + '"]');
   if (el) bootstrap.Tab.getOrCreateInstance(el).show();
 }
 
@@ -960,8 +967,8 @@ def generate_report(sweep_n: int = 300) -> str:
            title="Open MBSE Model Viewer">
           <i class="bi bi-diagram-2-fill me-1"></i>MBSE Model
         </a>
-        <a class="btn btn-sm btn-outline-light" href="#tab-scenarios"
-           title="Jump to Scenarios &amp; Sweep">
+        <a class="btn btn-sm btn-outline-light" href="javascript:void(0)"
+           title="Jump to Scenarios &amp; Sweep" onclick="activateScenariosTab()">
           <i class="bi bi-graph-up me-1"></i>Sweep
         </a>
       </div>
@@ -1005,7 +1012,7 @@ def generate_report(sweep_n: int = 300) -> str:
     <i class="bi bi-shield-fill-check text-danger"></i> Safety Dashboard
   </span>
   <span class="sep">|</span>
-  <a href="#tab-scenarios" data-bs-toggle="tab">
+  <a href="javascript:void(0)" id="tool-nav-sweep" onclick="activateScenariosTab()">
     <i class="bi bi-graph-up"></i> Parametric Sweep
   </a>
   <span class="sweep-badge text-muted" id="sweep-nav-stat"></span>
