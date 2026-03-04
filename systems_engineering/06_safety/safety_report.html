@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OSR Safety Analysis Report</title>
+<style>
+* { box-sizing: border-box; }
+body { font-family: system-ui, sans-serif; margin: 2rem; color: #212529; max-width: 1400px; }
+h1 { border-bottom: 3px solid #0d6efd; padding-bottom: .5rem; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #dee2e6; padding-bottom: .25rem; color: #0d6efd; }
+h3 { margin-top: 1.5rem; color: #495057; }
+nav { background: #f8f9fa; border: 1px solid #dee2e6; padding: 1rem 1.5rem;
+      border-radius: 4px; margin-bottom: 2rem; }
+nav a { display: inline-block; margin-right: 1.5rem; color: #0d6efd; text-decoration: none; }
+table { width: 100%; border-collapse: collapse; font-size: .88rem; margin: 1rem 0; }
+th, td { border: 1px solid #dee2e6; padding: .4rem .6rem; vertical-align: top; }
+thead th { background: #343a40; color: #fff; }
+tr:nth-child(even) { background: #f8f9fa; }
+.summary td:last-child, .summary th:last-child { font-weight: bold; }
+.matrix td, .matrix th { min-width: 70px; }
+.legend-green  { background: #d4edda; padding: 2px 8px; border-radius: 3px; margin-right: .5rem; }
+.legend-yellow { background: #fff3cd; padding: 2px 8px; border-radius: 3px; margin-right: .5rem; }
+.legend-red    { background: #f8d7da; padding: 2px 8px; border-radius: 3px; margin-right: .5rem; }
+code { background: #f8f9fa; padding: 1px 4px; border-radius: 3px; font-size: .85em; }
+footer { margin-top: 3rem; color: #6c757d; font-size: .85rem; border-top: 1px solid #dee2e6; padding-top: 1rem; }
+</style>
+</head>
+<body>
+
+<h1>JPL Open Source Rover — Safety Analysis Report</h1>
+<p><strong>Document:</strong> OSR-SAF-REPORT-001 &nbsp;|&nbsp;
+   <strong>Status:</strong> DRAFT &nbsp;|&nbsp;
+   <strong>Generated:</strong> 2026-03-03</p>
+
+<nav>
+  <strong>Contents:</strong>
+  <a href="#executive-summary">1. Executive Summary</a>
+  <a href="#risk-matrix">2. Risk Matrix</a>
+  <a href="#hazard-log">3. Hazard Log (FHA)</a>
+  <a href="#fmea">4. System FMEA</a>
+  <a href="#fault-tree-cut-sets">5. FTA Cut Sets</a>
+  <a href="#scenic-scenario-coverage">6. Scenario Coverage</a>
+  <a href="#open-action-items">7. Open Action Items</a>
+</nav>
+
+<section id="executive-summary">
+<h2>Executive Summary</h2>
+
+<table class="summary">
+  <tr><th>Metric</th><th>Value</th></tr>
+  <tr><td>Total hazards identified</td><td>10</td></tr>
+  <tr><td>Post-mitigation: High risk</td><td style="background:#f8d7da">0</td></tr>
+  <tr><td>Post-mitigation: Medium risk</td><td style="background:#fff3cd">7</td></tr>
+  <tr><td>Post-mitigation: Low risk</td><td style="background:#d4edda">3</td></tr>
+  <tr><td>Total FMEA failure modes</td><td>27</td></tr>
+  <tr><td>High-RPN failure modes (RPN &gt; 16)</td><td style="background:#f8d7da">6</td></tr>
+  <tr><td>Fault trees analysed</td><td>3</td></tr>
+  <tr><td>Scenic test scenarios</td><td>5</td></tr>
+</table>
+<p><strong>Legend:</strong>
+<span class="legend-green">Low</span>
+<span class="legend-yellow">Medium</span>
+<span class="legend-red">High</span>
+</p>
+
+</section>
+
+<section id="risk-matrix">
+<h2>Risk Matrix</h2>
+<table class='matrix'><thead><tr><th>L \ S</th><th>S=1</th><th>S=2</th><th>S=3</th><th>S=4</th><th>S=5</th></tr></thead><tbody>
+<tr><th>L=5</th><td style="background:#f8d7da;text-align:center;min-width:60px"></td><td style="background:#f8d7da;text-align:center;min-width:60px"></td><td style="background:#f8d7da;text-align:center;min-width:60px"></td><td style="background:#f8d7da;text-align:center;min-width:60px"></td><td style="background:#f8d7da;text-align:center;min-width:60px"></td></tr>
+<tr><th>L=4</th><td style="background:#fff3cd;text-align:center;min-width:60px"></td><td style="background:#f8d7da;text-align:center;min-width:60px"></td><td style="background:#f8d7da;text-align:center;min-width:60px"></td><td style="background:#f8d7da;text-align:center;min-width:60px"></td><td style="background:#f8d7da;text-align:center;min-width:60px"></td></tr>
+<tr><th>L=3</th><td style="background:#fff3cd;text-align:center;min-width:60px"></td><td style="background:#fff3cd;text-align:center;min-width:60px"></td><td style="background:#fff3cd;text-align:center;min-width:60px"></td><td style="background:#f8d7da;text-align:center;min-width:60px"></td><td style="background:#f8d7da;text-align:center;min-width:60px"></td></tr>
+<tr><th>L=2</th><td style="background:#d4edda;text-align:center;min-width:60px"></td><td style="background:#d4edda;text-align:center;min-width:60px"></td><td style="background:#fff3cd;text-align:center;min-width:60px"></td><td style="background:#fff3cd;text-align:center;min-width:60px">H-05<br>H-08</td><td style="background:#f8d7da;text-align:center;min-width:60px"></td></tr>
+<tr><th>L=1</th><td style="background:#d4edda;text-align:center;min-width:60px"></td><td style="background:#d4edda;text-align:center;min-width:60px"></td><td style="background:#d4edda;text-align:center;min-width:60px">H-07</td><td style="background:#fff3cd;text-align:center;min-width:60px">H-03<br>H-09</td><td style="background:#fff3cd;text-align:center;min-width:60px">H-01<br>H-02<br>H-04<br>H-06<br>H-10</td></tr>
+</tbody></table>
+</section>
+
+<section id="hazard-log">
+<h2>Hazard Log (FHA)</h2>
+<table><thead><tr>
+      <th>ID</th><th>Title</th><th>Cause</th><th>Effect</th>
+      <th>Pre-Risk (S×L)</th><th>Post-Risk (S×L)</th>
+      <th>Mitigation</th><th>Key Requirements</th><th>Scenario</th>
+    </tr></thead><tbody>
+<tr><td>H-01</td><td>Motor Overcurrent / Fire</td><td>Wheel stall, obstacle jam, short circuit</td><td>Motor winding damage, PCB damage, potential fire</td><td style="background:#f8d7da;text-align:center">High (15)</td><td style="background:#fff3cd;text-align:center">Medium (5)</td><td>SF-06.1 monitors per-motor current; safe stop at ≥ 10 A (100 ms response); in-line fuse</td><td><code>REQ-SF-06-01 REQ-SF-06-02</code></td><td>motor_stall</td></tr>
+<tr><td>H-02</td><td>Tip / Rollover</td><td>Excessive slope, dynamic cornering at speed</td><td>Rover inversion, hardware damage, injury risk</td><td style="background:#f8d7da;text-align:center">High (10)</td><td style="background:#fff3cd;text-align:center">Medium (5)</td><td>SF-06.3 monitors BNO055 IMU roll/pitch; safe stop at ≥ 35° within 100 ms</td><td><code>REQ-SF-06-04 REQ-SF-06-05</code></td><td>tilt_risk</td></tr>
+<tr><td>H-03</td><td>Battery Over-Discharge</td><td>Extended mission without monitoring, sensor failure</td><td>LiPo cell damage, reduced lifespan, potential venting</td><td style="background:#f8d7da;text-align:center">High (12)</td><td style="background:#fff3cd;text-align:center">Low (4)</td><td>SF-06.2 warns at < 11.0 V and stops at < 10.5 V; INA219 voltage monitoring at ≥ 1 Hz</td><td><code>REQ-SF-06-03</code></td><td>battery_low</td></tr>
+<tr><td>H-04</td><td>Runaway After Comm Loss</td><td>Wi-Fi dropout while rover is moving</td><td>Uncontrolled motion, collision with persons or objects</td><td style="background:#f8d7da;text-align:center">High (15)</td><td style="background:#fff3cd;text-align:center">Medium (5)</td><td>SF-01 1-second watchdog (LF-01.4) zeros velocity on /cmd_vel timeout</td><td><code>REQ-SF-01-02</code></td><td>comm_loss</td></tr>
+<tr><td>H-05</td><td>Collision / Unintended Motion</td><td>Operator error, malformed command, velocity bypass</td><td>Impact with obstacles, persons, or terrain</td><td style="background:#f8d7da;text-align:center">High (12)</td><td style="background:#fff3cd;text-align:center">Medium (8)</td><td>Velocity clamped to ±0.4 m/s; NaN/Inf discard; safety observer protocol</td><td><code>REQ-SF-01-03 REQ-LC-02-03</code></td><td>—</td></tr>
+<tr><td>H-06</td><td>Electrical Short Circuit</td><td>Wiring fault, connector failure, PCB fault</td><td>PCB damage, fire, loss of rover</td><td style="background:#f8d7da;text-align:center">High (10)</td><td style="background:#fff3cd;text-align:center">Medium (5)</td><td>In-line fuse ≤ 30 A between battery and PCB; positive-retention connectors</td><td><code>REQ-OA-033-03</code></td><td>—</td></tr>
+<tr><td>H-07</td><td>Payload Overcurrent</td><td>Payload draws more than rated power (> 2 A)</td><td>PCB rail damage, system reset, payload damage</td><td style="background:#fff3cd;text-align:center">Medium (9)</td><td style="background:#d4edda;text-align:center">Low (3)</td><td>SF-07.2 monitors payload current via INA219; software cutoff at configurable limit</td><td><code>REQ-SF-07-02</code></td><td>—</td></tr>
+<tr><td>H-08</td><td>Software Crash / Node Failure</td><td>Python exception, OOM, kernel panic</td><td>Loss of control, no safe stop if fault monitor crashes</td><td style="background:#f8d7da;text-align:center">High (12)</td><td style="background:#fff3cd;text-align:center">Medium (8)</td><td>ROS node respawn; hardware RoboClaw serial timeout as independent backup</td><td><code>REQ-OA-023-02</code></td><td>—</td></tr>
+<tr><td>H-09</td><td>Structural Failure</td><td>Excessive load, manufacturing defect, fatigue</td><td>Collapse during traverse, hardware damage</td><td style="background:#fff3cd;text-align:center">Low (4)</td><td style="background:#fff3cd;text-align:center">Low (4)</td><td>Mechanical design with safety factor; post-session hardware inspection</td><td><code>REQ-OA-022-01</code></td><td>—</td></tr>
+<tr><td>H-10</td><td>LiPo Thermal Runaway</td><td>Overcharge, cell damage, puncture during transport</td><td>Fire, toxic gas release</td><td style="background:#fff3cd;text-align:center">Medium (5)</td><td style="background:#fff3cd;text-align:center">Medium (5)</td><td>Charge at ≤ 1C; never charge unattended; store in LiPo-safe bag; no in-rover charging</td><td><code>REQ-OA-021-01 REQ-OA-021-02 REQ-OA-021-03</code></td><td>—</td></tr>
+</tbody></table>
+</section>
+
+<section id="fmea">
+<h2>System-Level FMEA</h2>
+<table><thead><tr>
+      <th>ID</th><th>SF</th><th>Failure Mode</th><th>Effect</th>
+      <th>Cause</th><th>S</th><th>O</th><th>D</th><th>RPN</th>
+      <th>Hazard</th><th>Mitigation</th>
+    </tr></thead><tbody>
+<tr><td>FM-05-02</td><td>SF-05</td><td>Video latency > 1 s</td><td>Operator makes control decisions on stale image</td><td>Network congestion</td><td style="text-align:center">3</td><td style="text-align:center">3</td><td style="text-align:center">3</td><td style="background:#f8d7da;text-align:center;font-weight:bold">27</td><td>H-05</td><td>Reduce resolution/framerate; operator uses safety observer for proximity</td></tr>
+<tr><td>FM-01-01</td><td>SF-01</td><td>No /cmd_vel received</td><td>Rover continues last velocity command</td><td>Wi-Fi dropout, ground station crash</td><td style="text-align:center">4</td><td style="text-align:center">3</td><td style="text-align:center">2</td><td style="background:#f8d7da;text-align:center;font-weight:bold">24</td><td>H-04</td><td>1-second watchdog (LF-01.4) zeroes velocity</td></tr>
+<tr><td>FM-03-04</td><td>SF-03</td><td>Voltage reading drift</td><td>Wrong SoC estimate</td><td>INA219 calibration error</td><td style="text-align:center">3</td><td style="text-align:center">2</td><td style="text-align:center">3</td><td style="background:#f8d7da;text-align:center;font-weight:bold">18</td><td>H-03</td><td>Factory calibration; compare against multimeter at setup</td></tr>
+<tr><td>FM-04-02</td><td>SF-04</td><td>Odometry divergence</td><td>Position estimate unusable</td><td>Wheel slip on loose surface</td><td style="text-align:center">2</td><td style="text-align:center">3</td><td style="text-align:center">3</td><td style="background:#f8d7da;text-align:center;font-weight:bold">18</td><td>—</td><td>Expected on loose terrain; operator uses visual navigation</td></tr>
+<tr><td>FM-04-03</td><td>SF-04</td><td>Telemetry topic drops</td><td>Operator loses state visibility</td><td>Wi-Fi bandwidth saturation</td><td style="text-align:center">3</td><td style="text-align:center">3</td><td style="text-align:center">2</td><td style="background:#f8d7da;text-align:center;font-weight:bold">18</td><td>H-04</td><td>Reduce camera resolution; prioritise /battery_state and /diagnostics</td></tr>
+<tr><td>FM-04-04</td><td>SF-04</td><td>IMU attitude filter divergence</td><td>Roll/pitch estimate wrong</td><td>Gyro bias at startup</td><td style="text-align:center">3</td><td style="text-align:center">2</td><td style="text-align:center">3</td><td style="background:#f8d7da;text-align:center;font-weight:bold">18</td><td>H-02</td><td>Allow 5-second warm-up on level surface before traverse</td></tr>
+<tr><td>FM-01-04</td><td>SF-01</td><td>Watchdog timer fails to fire</td><td>No auto-halt on comm loss</td><td>Software bug, rospy.Timer crash</td><td style="text-align:center">4</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="background:#fff3cd;text-align:center;font-weight:bold">16</td><td>H-04 H-08</td><td>Node supervisor restarts; hardware RoboClaw timeout</td></tr>
+<tr><td>FM-04-01</td><td>SF-04</td><td>BNO055 IMU data freeze</td><td>Stale orientation; tilt detection fails</td><td>I2C lockup, sensor reset</td><td style="text-align:center">4</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="background:#fff3cd;text-align:center;font-weight:bold">16</td><td>H-02</td><td>Timestamp staleness check in LC-05; alert on /diagnostics</td></tr>
+<tr><td>FM-06-03</td><td>SF-06</td><td>Tilt threshold wrong axis</td><td>Tip not detected</td><td>IMU mounted with wrong orientation</td><td style="text-align:center">4</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="background:#fff3cd;text-align:center;font-weight:bold">16</td><td>H-02</td><td>Tilt calibration test during setup; verify correct roll/pitch mapping</td></tr>
+<tr><td>FM-01-02</td><td>SF-01</td><td>Malformed Twist message</td><td>Incorrect motion command executed</td><td>Corrupted packet, ROS serialisation bug</td><td style="text-align:center">3</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="background:#fff3cd;text-align:center;font-weight:bold">12</td><td>H-05</td><td>NaN/Inf check (LF-01.2) discards bad packets</td></tr>
+<tr><td>FM-02-01</td><td>SF-02</td><td>Kinematic model error</td><td>Wrong wheel speed ratio — drift or spin</td><td>Geometry parameter mismatch</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="text-align:center">3</td><td style="background:#fff3cd;text-align:center;font-weight:bold">12</td><td>H-05</td><td>Calibration test during build</td></tr>
+<tr><td>FM-02-04</td><td>SF-02</td><td>Single wheel encoder failure</td><td>Odometry drift</td><td>Encoder damaged; cable break</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="text-align:center">3</td><td style="background:#fff3cd;text-align:center;font-weight:bold">12</td><td>—</td><td>/diagnostics flags abnormal encoder delta</td></tr>
+<tr><td>FM-07-02</td><td>SF-07</td><td>Payload overcurrent</td><td>PCB rail damage, system reset</td><td>Payload hardware fault</td><td style="text-align:center">3</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="background:#fff3cd;text-align:center;font-weight:bold">12</td><td>H-07</td><td>SF-07.2 cuts rail at configurable limit (default 2 A)</td></tr>
+<tr><td>FM-07-03</td><td>SF-07</td><td>I2C bus contention from payload</td><td>LC-04 sensor reads corrupted</td><td>Payload device using same I2C address</td><td style="text-align:center">3</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="background:#fff3cd;text-align:center;font-weight:bold">12</td><td>H-08</td><td>Reserve I2C addresses in payload interface spec</td></tr>
+<tr><td>FM-06-01</td><td>SF-06</td><td>Fault monitor node crash</td><td>No automated safe stop</td><td>Python exception, OOM</td><td style="text-align:center">5</td><td style="text-align:center">2</td><td style="text-align:center">1</td><td style="background:#fff3cd;text-align:center;font-weight:bold">10</td><td>H-01 H-02 H-04</td><td>respawn=true in ROS launch; hardware RoboClaw timeout as backup</td></tr>
+<tr><td>FM-01-03</td><td>SF-01</td><td>Velocity limit bypass</td><td>Rover moves faster than safe speed</td><td>Software bug in clamping logic</td><td style="text-align:center">3</td><td style="text-align:center">1</td><td style="text-align:center">3</td><td style="background:#fff3cd;text-align:center;font-weight:bold">9</td><td>H-05</td><td>Unit test for LF-01.3 clamp at all boundary values</td></tr>
+<tr><td>FM-02-03</td><td>SF-02</td><td>PCA9685 I2C lockup</td><td>Steering servos freeze at last angle</td><td>I2C bus contention, power glitch</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="background:#d4edda;text-align:center;font-weight:bold">8</td><td>—</td><td>I2C bus reset; servo mechanically safe at any fixed angle</td></tr>
+<tr><td>FM-03-01</td><td>SF-03</td><td>INA219 I2C failure</td><td>No battery monitoring</td><td>Hardware fault, I2C address conflict</td><td style="text-align:center">4</td><td style="text-align:center">2</td><td style="text-align:center">1</td><td style="background:#d4edda;text-align:center;font-weight:bold">8</td><td>H-03</td><td>/diagnostics reports sensor loss; operator should halt</td></tr>
+<tr><td>FM-06-02</td><td>SF-06</td><td>Current threshold too high</td><td>Motor damage before shutdown</td><td>Threshold misconfigured</td><td style="text-align:center">4</td><td style="text-align:center">1</td><td style="text-align:center">2</td><td style="background:#d4edda;text-align:center;font-weight:bold">8</td><td>H-01</td><td>Threshold validated against motor stall current spec (≤ 10 A)</td></tr>
+<tr><td>FM-06-04</td><td>SF-06</td><td>Safe stop doesn't zero all motors</td><td>Residual motion after fault</td><td>Bug in SF-06.4 implementation</td><td style="text-align:center">4</td><td style="text-align:center">1</td><td style="text-align:center">2</td><td style="background:#d4edda;text-align:center;font-weight:bold">8</td><td>H-01 H-02</td><td>Integration test: verify all 3 RoboClaws receive 0 setpoint</td></tr>
+<tr><td>FM-06-05</td><td>SF-06</td><td>Latched halt not clearable</td><td>Rover stuck after false positive</td><td>Software bug in latch logic</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="background:#d4edda;text-align:center;font-weight:bold">8</td><td>—</td><td>Operator can restart fault_node via SSH</td></tr>
+<tr><td>FM-07-04</td><td>SF-07</td><td>Payload pulls voltage rail low</td><td>RPi undervoltage, system reset</td><td>Payload draws excessive current on 5V rail</td><td style="text-align:center">4</td><td style="text-align:center">2</td><td style="text-align:center">1</td><td style="background:#d4edda;text-align:center;font-weight:bold">8</td><td>H-08</td><td>Separate payload 5V rail from RPi 5V rail on PCB</td></tr>
+<tr><td>FM-02-02</td><td>SF-02</td><td>RoboClaw USB serial loss</td><td>Motors stop abruptly</td><td>Cable fault, USB enumeration failure</td><td style="text-align:center">3</td><td style="text-align:center">2</td><td style="text-align:center">1</td><td style="background:#d4edda;text-align:center;font-weight:bold">6</td><td>H-09</td><td>RoboClaw has built-in serial timeout; logs error</td></tr>
+<tr><td>FM-05-01</td><td>SF-05</td><td>Camera node crash</td><td>No video feed</td><td>USB disconnect, raspicam error</td><td style="text-align:center">2</td><td style="text-align:center">3</td><td style="text-align:center">1</td><td style="background:#d4edda;text-align:center;font-weight:bold">6</td><td>H-05</td><td>Optional component; mission continues without video</td></tr>
+<tr><td>FM-03-02</td><td>SF-03</td><td>Buck converter failure</td><td>Loss of 5V logic rail</td><td>Component failure, overcurrent</td><td style="text-align:center">4</td><td style="text-align:center">1</td><td style="text-align:center">1</td><td style="background:#d4edda;text-align:center;font-weight:bold">4</td><td>H-08</td><td>PCB fuse; RPi and RoboClaws lose power simultaneously (safe)</td></tr>
+<tr><td>FM-03-03</td><td>SF-03</td><td>Fuse blow (expected)</td><td>Circuit protected, motor stops</td><td>Overcurrent event</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="text-align:center">1</td><td style="background:#d4edda;text-align:center;font-weight:bold">4</td><td>H-01</td><td>Replace fuse; inspect wiring before resuming</td></tr>
+<tr><td>FM-07-01</td><td>SF-07</td><td>Payload power switch failure</td><td>Payload always on or always off</td><td>GPIO driver bug, transistor failure</td><td style="text-align:center">2</td><td style="text-align:center">1</td><td style="text-align:center">2</td><td style="background:#d4edda;text-align:center;font-weight:bold">4</td><td>H-07</td><td>Manual power disconnect available; software toggle verified in test</td></tr>
+</tbody></table>
+<p><em>Table sorted by descending RPN. S = Severity, O = Occurrence, D = Detectability (1–5 each).</em></p>
+</section>
+
+<section id="fault-tree-cut-sets">
+<h2>Fault Tree Cut Sets</h2>
+<h3>H-01 — Motor Overcurrent</h3>
+<p><strong>Minimal cut sets (each is sufficient to cause the top event):</strong></p>
+<ol>
+  <li><em>Current sensor fails</em> AND <em>Software threshold not reached</em></li>
+  <li><em>RoboClaw ignores setpoint = 0</em> AND <em>SF-06.4 bug</em></li>
+  <li><em>In-line fuse rated too high</em></li>
+</ol>
+<h3>H-02 — Tip / Rollover</h3>
+<p><strong>Minimal cut sets (each is sufficient to cause the top event):</strong></p>
+<ol>
+  <li><em>IMU data frozen</em> AND <em>Staleness check bypassed</em></li>
+  <li><em>IMU orientation wrong</em> AND <em>Tilt threshold on wrong axis</em></li>
+  <li><em>Rover speed > 0.4 m/s</em> AND <em>Velocity clamp bypassed</em></li>
+</ol>
+<h3>H-04 — Runaway After Comm Loss</h3>
+<p><strong>Minimal cut sets (each is sufficient to cause the top event):</strong></p>
+<ol>
+  <li><em>Wi-Fi drops</em> AND <em>Watchdog timer fails</em></li>
+  <li><em>Wi-Fi drops</em> AND <em>RoboClaw serial timeout not configured</em></li>
+</ol>
+</section>
+
+<section id="scenic-scenario-coverage">
+<h2>Scenic Scenario Coverage</h2>
+<table><thead><tr><th>Scenario</th><th>H-01</th><th>H-02</th><th>H-03</th><th>H-04</th><th>H-05</th><th>H-06</th><th>H-07</th><th>H-08</th><th>H-09</th><th>H-10</th></tr></thead><tbody>
+<tr><td><strong>Nominal Traverse</strong><br><code>nominal_traverse.scenic</code></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#d4edda">✓</td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td></tr>
+<tr><td><strong>Battery Low</strong><br><code>battery_low.scenic</code></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#d4edda">✓</td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#d4edda">✓</td></tr>
+<tr><td><strong>Tilt Risk</strong><br><code>tilt_risk.scenic</code></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#d4edda">✓</td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td></tr>
+<tr><td><strong>Motor Stall</strong><br><code>motor_stall.scenic</code></td><td style="text-align:center;background:#d4edda">✓</td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td></tr>
+<tr><td><strong>Comm Loss</strong><br><code>comm_loss.scenic</code></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#d4edda">✓</td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td></tr>
+</tbody></table>
+<p><em>✓ = scenario explicitly exercises this hazard's boundary conditions.</em></p>
+</section>
+
+<section id="open-action-items">
+<h2>Open Action Items (RPN > 16)</h2>
+<table><thead><tr>
+      <th>FM ID</th><th>SF</th><th>Failure Mode</th><th>RPN</th><th>Required Action</th>
+    </tr></thead><tbody>
+<tr><td>FM-05-02</td><td>SF-05</td><td>Video latency > 1 s</td><td style="background:#f8d7da;text-align:center;font-weight:bold">27</td><td>Reduce resolution/framerate; operator uses safety observer for proximity</td></tr>
+<tr><td>FM-01-01</td><td>SF-01</td><td>No /cmd_vel received</td><td style="background:#f8d7da;text-align:center;font-weight:bold">24</td><td>1-second watchdog (LF-01.4) zeroes velocity</td></tr>
+<tr><td>FM-03-04</td><td>SF-03</td><td>Voltage reading drift</td><td style="background:#f8d7da;text-align:center;font-weight:bold">18</td><td>Factory calibration; compare against multimeter at setup</td></tr>
+<tr><td>FM-04-02</td><td>SF-04</td><td>Odometry divergence</td><td style="background:#f8d7da;text-align:center;font-weight:bold">18</td><td>Expected on loose terrain; operator uses visual navigation</td></tr>
+<tr><td>FM-04-03</td><td>SF-04</td><td>Telemetry topic drops</td><td style="background:#f8d7da;text-align:center;font-weight:bold">18</td><td>Reduce camera resolution; prioritise /battery_state and /diagnostics</td></tr>
+<tr><td>FM-04-04</td><td>SF-04</td><td>IMU attitude filter divergence</td><td style="background:#f8d7da;text-align:center;font-weight:bold">18</td><td>Allow 5-second warm-up on level surface before traverse</td></tr>
+</tbody></table>
+</section>
+
+
+<footer>
+  Generated by <code>generate_safety_report.py</code> — OSR MBSE safety analysis pipeline.<br>
+  Emulates ATICA4Capella FHA + FMEA outputs (ANZEN Engineering) without requiring Capella.<br>
+  Source data: <code>hazard_log.md</code>, <code>fmea_system.md</code>, <code>fta.md</code>,
+  <code>scenarios/</code>
+</footer>
+
+</body>
+</html>
