@@ -352,12 +352,12 @@ const SCENIC_PARAMS = {
     return "\n".join(lines)
 
 
-def _run_sweep_json(n: int = 300) -> str:
+def _run_sweep_json(n: int = 300, method: str = "lhs", seed: int = 42) -> str:
     """Run a quick parametric sweep and return its JSON string."""
     if not _HAS_SWEEP:
         return "null"
     try:
-        result = quick_sweep(n=n, seed=42)
+        result = quick_sweep(n=n, method=method, seed=seed)
         return SweepReport(result).to_json()
     except Exception as exc:
         print(f"  [warn] Sweep failed: {exc}")
@@ -430,6 +430,18 @@ tr.fmea-edited td { background-color:#e7f1ff !important; }
               border-radius:6px; min-width:80px; }
 .sweep-stat-val { font-size:1.4rem; font-weight:700; line-height:1.1; }
 .sweep-stat-lbl { font-size:.72rem; color:#6c757d; }
+/* ── Dev panel ─────────────────────────────────────────────────────────── */
+#dev-chip{position:fixed;bottom:1.1rem;right:1.1rem;z-index:9999;width:36px;height:36px;
+  border-radius:50%;background:#495057;color:#fff;display:flex;align-items:center;
+  justify-content:center;cursor:pointer;font-size:1.05rem;
+  box-shadow:0 2px 8px rgba(0,0,0,.3);user-select:none;transition:background .15s}
+#dev-chip:hover{background:#343a40}
+#dev-panel{display:none;position:fixed;bottom:4.6rem;right:1.1rem;z-index:9999;width:290px;
+  background:#fff;border:1px solid #dee2e6;border-radius:8px;
+  box-shadow:0 4px 20px rgba(0,0,0,.18);padding:1rem;font-size:.82rem}
+#dev-toast{display:none;position:fixed;bottom:1.1rem;left:50%;transform:translateX(-50%);
+  z-index:10000;padding:.4rem 1.2rem;border-radius:6px;font-size:.8rem;font-weight:500;
+  box-shadow:0 2px 8px rgba(0,0,0,.2);white-space:nowrap;pointer-events:none}
 """
 
 _SCRIPT = """\
@@ -920,10 +932,132 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 });
+
+// ── Dev Panel ────────────────────────────────────────────────────────────────
+var _devOpen = false;
+function devToggle() {
+  _devOpen = !_devOpen;
+  document.getElementById('dev-panel').style.display = _devOpen ? 'block' : 'none';
+}
+function _devToast(msg, ok) {
+  var t = document.getElementById('dev-toast');
+  t.textContent = msg;
+  t.style.background = ok ? '#198754' : '#dc3545';
+  t.style.color = '#fff';
+  t.style.display = 'block';
+  setTimeout(function() { t.style.display = 'none'; }, ok ? 3000 : 5000);
+}
+function devRegen() {
+  var btn = document.getElementById('dev-regen-btn');
+  var n   = document.getElementById('dev-n').value;
+  var m   = document.getElementById('dev-method').value;
+  var s   = document.getElementById('dev-seed').value;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Running\u2026';
+  var t0   = Date.now();
+  var ctrl = new AbortController();
+  var tid  = setTimeout(function() { ctrl.abort(); }, 300000);
+  fetch('http://localhost:8765/regen/safety?n=' + n + '&method=' + m + '&seed=' + s,
+        {method: 'POST', signal: ctrl.signal})
+    .then(function(r) { clearTimeout(tid); return r.json(); })
+    .then(function(d) {
+      if (d.ok) {
+        _devToast('Regenerated in ' + d.elapsed_s + ' s', true);
+        setTimeout(function() { location.reload(); }, 900);
+      } else {
+        _devToast('Error: ' + (d.stderr || d.error || '?').slice(0, 140), false);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Regenerate';
+      }
+    })
+    .catch(function(e) {
+      clearTimeout(tid);
+      _devToast('Fetch error: ' + e.message, false);
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Regenerate';
+    });
+}
+function devCopy() {
+  var cmd = document.getElementById('dev-cli-cmd').textContent;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(cmd).then(function() { _devToast('Copied!', true); });
+  }
+}
+(function() {
+  var ctrl = new AbortController();
+  var tid  = setTimeout(function() { ctrl.abort(); }, 700);
+  fetch('http://localhost:8765/ping', {signal: ctrl.signal})
+    .then(function(r) { clearTimeout(tid); return r.json(); })
+    .then(function(d) {
+      if (d && d.ok) {
+        document.getElementById('dev-server-mode').style.display = 'block';
+      } else {
+        document.getElementById('dev-cli-mode').style.display = 'block';
+      }
+    })
+    .catch(function() {
+      clearTimeout(tid);
+      document.getElementById('dev-cli-mode').style.display = 'block';
+    });
+})();
 """
 
 
-def generate_report(sweep_n: int = 300) -> str:
+_DEV_PANEL_SAFETY_HTML = """\
+<div id="dev-chip" title="Dev Tools (dev_server.py)" onclick="devToggle()">&#9881;</div>
+<div id="dev-panel">
+  <div style="font-weight:600;margin-bottom:.65rem;color:#343a40;font-size:.85rem">&#9881; Dev Tools</div>
+  <div id="dev-server-mode" style="display:none">
+    <div class="row g-2 mb-2">
+      <div class="col">
+        <label style="font-size:.72rem;color:#6c757d;display:block">Method</label>
+        <select id="dev-method" class="form-select form-select-sm">
+          <option value="lhs">lhs</option>
+          <option value="montecarlo">montecarlo</option>
+          <option value="grid">grid</option>
+        </select>
+      </div>
+      <div class="col">
+        <label style="font-size:.72rem;color:#6c757d;display:block">n</label>
+        <input id="dev-n" type="number" class="form-control form-control-sm"
+               value="300" min="50" max="2000" step="50">
+      </div>
+      <div class="col">
+        <label style="font-size:.72rem;color:#6c757d;display:block">seed</label>
+        <input id="dev-seed" type="number" class="form-control form-control-sm"
+               value="42" min="0">
+      </div>
+    </div>
+    <button id="dev-regen-btn" class="btn btn-sm btn-primary w-100 mb-2"
+            onclick="devRegen()">
+      <i class="bi bi-arrow-clockwise me-1"></i>Regenerate Safety Report
+    </button>
+    <a href="http://localhost:8765/model_viewer.html"
+       class="btn btn-sm btn-outline-secondary w-100" target="_blank">
+      <i class="bi bi-box-arrow-up-right me-1"></i>Open Model Viewer
+    </a>
+    <div id="dev-status" class="mt-2" style="min-height:1rem;font-size:.72rem;color:#6c757d"></div>
+  </div>
+  <div id="dev-cli-mode" style="display:none">
+    <div style="color:#6c757d;margin-bottom:.5rem;font-size:.78rem">Dev server not running.</div>
+    <code id="dev-cli-cmd" style="font-size:.7rem;display:block;background:#f8f9fa;
+          padding:.35rem .5rem;border-radius:4px;word-break:break-all"
+    >python3 generate_safety_report.py</code>
+    <button class="btn btn-sm btn-outline-secondary w-100 mt-2" onclick="devCopy()">
+      <i class="bi bi-clipboard me-1"></i>Copy command
+    </button>
+    <div style="color:#6c757d;margin-top:.6rem;font-size:.75rem">
+      Start server: <code style="font-size:.7rem">python3 dev_server.py</code>
+    </div>
+  </div>
+</div>
+<div id="dev-toast"></div>
+"""
+
+
+def generate_report(sweep_n: int = 300,
+                    sweep_method: str = "lhs",
+                    sweep_seed: int = 42) -> str:
     data = _to_json()
     data_json  = json.dumps(data, ensure_ascii=False, indent=2)
     date_str   = datetime.now().strftime("%Y-%m-%d")
@@ -934,8 +1068,9 @@ def generate_report(sweep_n: int = 300) -> str:
     fm_high    = sum(1 for f in FMEA if f[5] * f[6] * f[7] > 16)
 
     # Run parametric sweep and embed result
-    print(f"  Running parametric sweep (n={sweep_n}) …", end=" ", flush=True)
-    sweep_json = _run_sweep_json(n=sweep_n)
+    print(f"  Running parametric sweep (method={sweep_method}, n={sweep_n}, seed={sweep_seed}) …",
+          end=" ", flush=True)
+    sweep_json = _run_sweep_json(n=sweep_n, method=sweep_method, seed=sweep_seed)
     print("done" if sweep_json != "null" else "skipped (scenic_module not found)")
 
     # Resolve dynamic JS constant from parameter_space.py
@@ -1240,6 +1375,7 @@ def generate_report(sweep_n: int = 300) -> str:
 <script>window.__OSR_SWEEP__   = {sweep_json};</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>{script}</script>
+{_DEV_PANEL_SAFETY_HTML}
 </body>
 </html>
 """
@@ -1255,10 +1391,24 @@ def main() -> None:
     )
     p.add_argument("--out", "-o", default=None,
                    help="Output path (default: safety_report.html next to this script)")
+    p.add_argument("--sweep-n", type=int, default=300, metavar="N",
+                   help="Number of sweep samples (default: 300)")
+    p.add_argument("--sweep-method", default="lhs",
+                   choices=["lhs", "montecarlo", "grid"],
+                   help="Sweep sampling method (default: lhs)")
+    p.add_argument("--sweep-seed", type=int, default=42, metavar="S",
+                   help="Random seed (default: 42)")
     args = p.parse_args()
 
     out = Path(args.out) if args.out else Path(__file__).parent / "safety_report.html"
-    out.write_text(generate_report(), encoding="utf-8")
+    out.write_text(
+        generate_report(
+            sweep_n=args.sweep_n,
+            sweep_method=args.sweep_method,
+            sweep_seed=args.sweep_seed,
+        ),
+        encoding="utf-8",
+    )
 
     print(f"Written: {out}")
     print(f"  {len(HAZARDS)} hazards, {len(FMEA)} failure modes, "

@@ -1246,6 +1246,115 @@ renderDetail();
   window.addEventListener('hashchange', selectFromHash);
 })();
 </script>
+
+<!-- Dev panel (requires dev_server.py running on port 8765) -->
+<style>
+#mv-dev-chip{position:fixed;bottom:1.1rem;right:1.1rem;z-index:9999;width:36px;height:36px;
+  border-radius:50%;background:#495057;color:#fff;display:flex;align-items:center;
+  justify-content:center;cursor:pointer;font-size:1.05rem;
+  box-shadow:0 2px 8px rgba(0,0,0,.3);user-select:none;transition:background .15s}
+#mv-dev-chip:hover{background:#343a40}
+#mv-dev-panel{display:none;position:fixed;bottom:4.6rem;right:1.1rem;z-index:9999;
+  width:270px;background:#fff;border:1px solid #dee2e6;border-radius:8px;
+  box-shadow:0 4px 20px rgba(0,0,0,.18);padding:1rem;font-size:.82rem}
+#mv-dev-toast{display:none;position:fixed;bottom:1.1rem;left:50%;transform:translateX(-50%);
+  z-index:10000;padding:.4rem 1.2rem;border-radius:6px;font-size:.8rem;font-weight:500;
+  box-shadow:0 2px 8px rgba(0,0,0,.2);white-space:nowrap;pointer-events:none}
+</style>
+<div id="mv-dev-chip" title="Dev Tools (dev_server.py)" onclick="mvDevToggle()">&#9881;</div>
+<div id="mv-dev-panel">
+  <div style="font-weight:600;margin-bottom:.65rem;color:#343a40;font-size:.85rem">&#9881; Dev Tools</div>
+  <div id="mv-dev-server-mode" style="display:none">
+    <button id="mv-dev-regen-btn" class="btn btn-sm btn-primary w-100 mb-2"
+            onclick="mvDevRegen()" style="font-size:.82rem">
+      <i class="bi bi-arrow-clockwise me-1"></i>Regenerate Model Viewer
+    </button>
+    <a href="http://localhost:8765/safety_report.html"
+       class="btn btn-sm btn-outline-secondary w-100" target="_blank"
+       style="font-size:.82rem">
+      <i class="bi bi-box-arrow-up-right me-1"></i>Open Safety Dashboard
+    </a>
+    <div id="mv-dev-status" class="mt-2" style="min-height:1rem;font-size:.72rem;color:#6c757d"></div>
+  </div>
+  <div id="mv-dev-cli-mode" style="display:none">
+    <div style="color:#6c757d;margin-bottom:.5rem;font-size:.78rem">Dev server not running.</div>
+    <code id="mv-dev-cli-cmd" style="font-size:.7rem;display:block;background:#f8f9fa;
+          padding:.35rem .5rem;border-radius:4px;word-break:break-all"
+    >python3 generate_model_viewer.py</code>
+    <button class="btn btn-sm btn-outline-secondary w-100 mt-2" onclick="mvDevCopy()"
+            style="font-size:.82rem">
+      <i class="bi bi-clipboard me-1"></i>Copy command
+    </button>
+    <div style="color:#6c757d;margin-top:.6rem;font-size:.75rem">
+      Start server: <code style="font-size:.7rem">python3 dev_server.py</code>
+    </div>
+  </div>
+</div>
+<div id="mv-dev-toast"></div>
+<script>
+var _mvDevOpen = false;
+function mvDevToggle() {
+  _mvDevOpen = !_mvDevOpen;
+  document.getElementById('mv-dev-panel').style.display = _mvDevOpen ? 'block' : 'none';
+}
+function _mvDevToast(msg, ok) {
+  var t = document.getElementById('mv-dev-toast');
+  t.textContent = msg;
+  t.style.background = ok ? '#198754' : '#dc3545';
+  t.style.color = '#fff';
+  t.style.display = 'block';
+  setTimeout(function() { t.style.display = 'none'; }, ok ? 3000 : 5000);
+}
+function mvDevRegen() {
+  var btn = document.getElementById('mv-dev-regen-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Running\u2026';
+  var t0   = Date.now();
+  var ctrl = new AbortController();
+  var tid  = setTimeout(function() { ctrl.abort(); }, 120000);
+  fetch('http://localhost:8765/regen/model', {method: 'POST', signal: ctrl.signal})
+    .then(function(r) { clearTimeout(tid); return r.json(); })
+    .then(function(d) {
+      if (d.ok) {
+        _mvDevToast('Regenerated in ' + d.elapsed_s + ' s', true);
+        setTimeout(function() { location.reload(); }, 900);
+      } else {
+        _mvDevToast('Error: ' + (d.stderr || d.error || '?').slice(0, 140), false);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Regenerate Model Viewer';
+      }
+    })
+    .catch(function(e) {
+      clearTimeout(tid);
+      _mvDevToast('Fetch error: ' + e.message, false);
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Regenerate Model Viewer';
+    });
+}
+function mvDevCopy() {
+  var cmd = document.getElementById('mv-dev-cli-cmd').textContent;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(cmd).then(function() { _mvDevToast('Copied!', true); });
+  }
+}
+(function() {
+  var ctrl = new AbortController();
+  var tid  = setTimeout(function() { ctrl.abort(); }, 700);
+  fetch('http://localhost:8765/ping', {signal: ctrl.signal})
+    .then(function(r) { clearTimeout(tid); return r.json(); })
+    .then(function(d) {
+      if (d && d.ok) {
+        document.getElementById('mv-dev-server-mode').style.display = 'block';
+      } else {
+        document.getElementById('mv-dev-cli-mode').style.display = 'block';
+      }
+    })
+    .catch(function() {
+      clearTimeout(tid);
+      document.getElementById('mv-dev-cli-mode').style.display = 'block';
+    });
+})();
+</script>
 </body>
 </html>
 """
