@@ -42,6 +42,18 @@ body  { background: #f8f9fa; }
 .cut-event { display: inline-block; background: #ffc107; border-radius: 3px;
   padding: 2px 7px; margin: 2px; font-size: .8rem; font-weight: 600; }
 .and-gate { font-weight: 700; color: #495057; margin: 0 4px; }
+/* editable FMEA */
+.fmea-sod { width:52px !important; padding:.15rem .3rem; font-size:.8rem; text-align:center; }
+tr.fmea-edited td { background-color:#e7f1ff !important; }
+/* scenic range bars */
+.param-bar-wrap { margin-bottom:.75rem; }
+.param-label { font-size:.8rem; font-weight:600; margin-bottom:.25rem; }
+.param-track { position:relative; height:22px; background:#dee2e6; border-radius:4px; margin-top:20px; }
+.param-fill  { position:absolute; height:100%; background:#0d6efd; border-radius:4px; opacity:.7; }
+.param-thresh { position:absolute; width:2px; height:100%; background:#dc3545; }
+.param-tick  { position:absolute; font-size:.7rem; top:-18px; transform:translateX(-50%); color:#6c757d; }
+.param-thresh-lbl { position:absolute; font-size:.7rem; bottom:-16px; transform:translateX(-50%); color:#dc3545; font-weight:600; white-space:nowrap; }
+.param-vals  { font-size:.78rem; color:#495057; margin-top:20px; }
 </style>
 </head>
 <body>
@@ -49,8 +61,16 @@ body  { background: #f8f9fa; }
 <!-- Header -->
 <div class="dash-header">
   <div class="container-fluid">
-    <h1><i class="bi bi-shield-check me-2"></i>JPL Open Source Rover — Safety Dashboard</h1>
-    <div class="meta">OSR-SAF-REPORT-001 &nbsp;|&nbsp; DRAFT &nbsp;|&nbsp; Generated: 2026-03-03</div>
+    <div class="d-flex justify-content-between align-items-start">
+      <div>
+        <h1><i class="bi bi-shield-check me-2"></i>JPL Open Source Rover — Safety Dashboard</h1>
+        <div class="meta">OSR-SAF-REPORT-001 &nbsp;|&nbsp; DRAFT &nbsp;|&nbsp; Generated: 2026-03-04</div>
+      </div>
+      <a class="btn btn-sm btn-light mt-1" href="../MBSE_workspace/model_viewer.html"
+         title="Open MBSE Model Viewer">
+        <i class="bi bi-diagram-2-fill me-1"></i>MBSE Model
+      </a>
+    </div>
     <div class="mt-2">
       <span class="badge bg-light text-dark badge-stat me-1">
         <span id="stat-hazards">—</span> hazards
@@ -203,6 +223,14 @@ body  { background: #f8f9fa; }
           <input type="range" class="form-range" id="rpn-min" min="0" max="25" step="1" value="0" style="width:140px">
           <span id="rpn-val" class="badge bg-secondary">0</span>
         </div>
+        <div class="ms-auto d-flex gap-2">
+          <button class="btn btn-sm btn-outline-primary" id="fmea-export">
+            <i class="bi bi-download me-1"></i>Export CSV
+          </button>
+          <button class="btn btn-sm btn-outline-secondary" id="fmea-reset">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
+          </button>
+        </div>
       </div>
       <div id="fmea-wrap"></div>
     </div>
@@ -223,7 +251,7 @@ body  { background: #f8f9fa; }
 
     <!-- Scenarios -->
     <div class="tab-pane fade" id="tab-scenarios">
-      <div class="card">
+      <div class="card mb-3">
         <div class="card-body">
           <h5 class="card-title">Scenic Scenario Coverage Matrix</h5>
           <p class="text-muted" style="font-size:.83rem">
@@ -231,6 +259,19 @@ body  { background: #f8f9fa; }
             explicitly exercises the boundary conditions of that hazard.
           </p>
           <div id="scenarios-wrap"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Scenic Parameter Ranges vs Safety Thresholds</h5>
+          <p class="text-muted" style="font-size:.83rem">
+            Sampled parameter range
+            <span style="display:inline-block;width:18px;height:10px;background:#0d6efd;opacity:.7;border-radius:2px;vertical-align:middle"></span>
+            vs safety threshold
+            <span style="display:inline-block;width:2px;height:14px;background:#dc3545;vertical-align:middle"></span>.
+            Values from <code>.scenic</code> source files — no Scenic installation required.
+          </p>
+          <div id="scenic-ranges-wrap"></div>
         </div>
       </div>
     </div>
@@ -893,6 +934,15 @@ body  { background: #f8f9fa; }
 };</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>const D = window.__OSR_SAFETY__;
+const SCENIC_PARAMS = {
+  motor_stall:      [{name:'Motor Current',    unit:'A',   min:10.0, max:13.0, absMin:8,   absMax:15,  thresholds:[{v:10.0, lbl:'Trip ≥10 A'}]}],
+  battery_low:      [{name:'Bus Voltage',      unit:'V',   min:9.5,  max:11.5, absMin:9,   absMax:13,  thresholds:[{v:11.0, lbl:'Warn ≤11 V'},{v:10.5, lbl:'Stop ≤10.5 V'}]}],
+  tilt_risk:        [{name:'Roll Angle',       unit:'°',  min:20,   max:45,   absMin:0,   absMax:60,  thresholds:[{v:35,   lbl:'Stop ≥35°'}]}],
+  comm_loss:        [{name:'Silence Duration', unit:'s',   min:0.5,  max:3.0,  absMin:0,   absMax:4,   thresholds:[{v:1.0,  lbl:'Halt ≥1 s'}]}],
+  nominal_traverse: [{name:'Max Speed',        unit:'m/s', min:0.1,  max:0.35, absMin:0,   absMax:0.5, thresholds:[{v:0.4,  lbl:'Limit 0.4 m/s'}]}],
+};
+let fState = {}; // editable FMEA overrides: {id: {s, o, d}}
+function getSOD(f) { const st = fState[f.id]; return st || {s:f.s, o:f.o, d:f.d}; }
 
 // ── colour helpers ────────────────────────────────────────────────────────
 function riskClass(s, l) {
@@ -1012,10 +1062,18 @@ let fmeaMinRPN = 0;
 function renderFMEA() {
   let data = D.fmea
     .filter(f => fmeaSF === 'all' || f.sf === fmeaSF)
-    .filter(f => f.rpn >= fmeaMinRPN);
+    .filter(f => { const {s,o,d} = getSOD(f); return s*o*d >= fmeaMinRPN; });
 
   data = [...data].sort((a, b) => {
-    let va = a[fmeaSort.col], vb = b[fmeaSort.col];
+    let va, vb;
+    if (fmeaSort.col === 'rpn') {
+      const sa = getSOD(a), sb = getSOD(b);
+      va = sa.s*sa.o*sa.d; vb = sb.s*sb.o*sb.d;
+    } else if (['s','o','d'].includes(fmeaSort.col)) {
+      va = getSOD(a)[fmeaSort.col]; vb = getSOD(b)[fmeaSort.col];
+    } else {
+      va = a[fmeaSort.col]; vb = b[fmeaSort.col];
+    }
     if (typeof va === 'string') va = va.toLowerCase(), vb = vb.toLowerCase();
     return fmeaSort.dir * (va < vb ? -1 : va > vb ? 1 : 0);
   });
@@ -1035,27 +1093,30 @@ function renderFMEA() {
     return '<th class="' + cls + '" data-col="' + c.key + '">' + c.label + '</th>';
   }).join('');
 
-  const tbody = data.map(f =>
-    '<tr>'
-    + '<td>' + f.id + '</td>'
-    + '<td><span class="badge bg-secondary">' + f.sf + '</span></td>'
-    + '<td>' + f.mode + '</td>'
-    + '<td>' + f.effect + '</td>'
-    + '<td>' + f.cause + '</td>'
-    + '<td class="text-center">' + f.s + '</td>'
-    + '<td class="text-center">' + f.o + '</td>'
-    + '<td class="text-center">' + f.d + '</td>'
-    + '<td class="text-center ' + rpnClass(f.rpn) + '">' + f.rpn + '</td>'
-    + '<td>' + f.hazard + '</td>'
-    + '<td>' + f.mitigation + '</td>'
-    + '</tr>'
-  ).join('');
+  const tbody = data.map(f => {
+    const sod = getSOD(f);
+    const rpn = sod.s * sod.o * sod.d;
+    const edited = !!fState[f.id];
+    return '<tr class="' + (edited ? 'fmea-edited' : '') + '">'
+      + '<td>' + f.id + '</td>'
+      + '<td><span class="badge bg-secondary">' + f.sf + '</span></td>'
+      + '<td>' + f.mode + '</td>'
+      + '<td>' + f.effect + '</td>'
+      + '<td>' + f.cause + '</td>'
+      + '<td class="p-1"><input type="number" class="fmea-sod form-control" min="1" max="5" value="' + sod.s + '" data-id="' + f.id + '" data-field="s"></td>'
+      + '<td class="p-1"><input type="number" class="fmea-sod form-control" min="1" max="5" value="' + sod.o + '" data-id="' + f.id + '" data-field="o"></td>'
+      + '<td class="p-1"><input type="number" class="fmea-sod form-control" min="1" max="5" value="' + sod.d + '" data-id="' + f.id + '" data-field="d"></td>'
+      + '<td class="text-center ' + rpnClass(rpn) + '" id="rpn-' + f.id + '">' + rpn + '</td>'
+      + '<td>' + f.hazard + '</td>'
+      + '<td>' + f.mitigation + '</td>'
+      + '</tr>';
+  }).join('');
 
   document.getElementById('fmea-wrap').innerHTML =
     '<table class="table table-sm table-bordered sortable"><thead class="table-dark"><tr>'
     + thead + '</tr></thead><tbody>' + tbody + '</tbody></table>'
     + '<p class="text-muted" style="font-size:.8rem">Showing ' + data.length + ' of ' + D.fmea.length
-    + ' failure modes. Click a column header to sort.</p>';
+    + ' failure modes. <span class="text-primary">S/O/D cells are editable — RPN updates live. Blue rows have unsaved edits.</span></p>';
 
   document.querySelectorAll('#fmea-wrap th[data-col]').forEach(th => {
     th.addEventListener('click', () => {
@@ -1064,7 +1125,45 @@ function renderFMEA() {
       renderFMEA();
     });
   });
+
+  document.querySelectorAll('.fmea-sod').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const id = inp.dataset.id, field = inp.dataset.field;
+      const val = Math.max(1, Math.min(5, parseInt(inp.value) || 1));
+      inp.value = val;
+      const orig = D.fmea.find(f => f.id === id);
+      if (!fState[id]) fState[id] = {s: orig.s, o: orig.o, d: orig.d};
+      fState[id][field] = val;
+      const sod = fState[id];
+      const rpn = sod.s * sod.o * sod.d;
+      const cell = document.getElementById('rpn-' + id);
+      if (cell) { cell.textContent = rpn; cell.className = 'text-center ' + rpnClass(rpn); }
+      const row = inp.closest('tr');
+      if (sod.s === orig.s && sod.o === orig.o && sod.d === orig.d) {
+        delete fState[id]; row.classList.remove('fmea-edited');
+      } else {
+        row.classList.add('fmea-edited');
+      }
+    });
+  });
 }
+
+function exportFMEA() {
+  const hdr = ['ID','SF','Failure Mode','Effect','Cause','S','O','D','RPN','Hazard','Mitigation'];
+  const rows = D.fmea.map(f => {
+    const sod = getSOD(f);
+    return [f.id, f.sf, f.mode, f.effect, f.cause, sod.s, sod.o, sod.d, sod.s*sod.o*sod.d, f.hazard, f.mitigation];
+  });
+  const csv = [hdr, ...rows].map(r =>
+    r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')
+  ).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'OSR_FMEA.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+function resetFMEA() { fState = {}; renderFMEA(); }
 
 // ── FTA ──────────────────────────────────────────────────────────────────
 function renderFTA() {
@@ -1081,6 +1180,28 @@ function renderFTA() {
 }
 
 // ── Scenario coverage ─────────────────────────────────────────────────────
+function renderRangeBar(p) {
+  const span = p.absMax - p.absMin;
+  const left  = ((p.min - p.absMin) / span * 100).toFixed(1);
+  const width = ((p.max - p.min)    / span * 100).toFixed(1);
+  const ticks = [p.absMin, p.absMax].map(t => {
+    const pct = ((t - p.absMin) / span * 100).toFixed(1);
+    return '<div class="param-tick" style="left:' + pct + '%">' + t + '</div>';
+  }).join('');
+  const threshs = p.thresholds.map(t => {
+    const pct = ((t.v - p.absMin) / span * 100).toFixed(1);
+    return '<div class="param-thresh" style="left:' + pct + '%"></div>'
+         + '<div class="param-thresh-lbl" style="left:' + pct + '%">' + t.lbl + '</div>';
+  }).join('');
+  return '<div class="param-bar-wrap">'
+       + '<div class="param-label">' + p.name + ' (' + p.unit + ')</div>'
+       + '<div class="param-track">' + ticks
+       + '<div class="param-fill" style="left:' + left + '%;width:' + width + '%"></div>'
+       + threshs + '</div>'
+       + '<div class="param-vals">Sampled range: <strong>' + p.min + '&ndash;' + p.max + ' ' + p.unit + '</strong></div>'
+       + '</div>';
+}
+
 function renderScenarios() {
   const ids = D.all_hazard_ids;
   const head = '<tr><th>Scenario</th>' + ids.map(h => '<th>' + h + '</th>').join('') + '</tr>';
@@ -1096,6 +1217,20 @@ function renderScenarios() {
     '<div style="overflow-x:auto"><table class="table table-sm table-bordered">'
     + '<thead class="table-dark">' + head + '</thead><tbody>' + rows + '</tbody></table></div>'
     + '<p class="text-muted" style="font-size:.8rem">✓ = scenario explicitly exercises this hazard's boundary conditions.</p>';
+
+  // Render parameter range bars
+  let rangeHtml = '';
+  D.scenarios.forEach(sc => {
+    const params = SCENIC_PARAMS[sc.id];
+    if (!params) return;
+    rangeHtml += '<div class="mb-5"><h6 class="mb-3"><i class="bi bi-play-circle me-1"></i>'
+      + sc.name + ' <code style="font-size:.8rem">' + sc.id + '.scenic</code></h6>'
+      + '<div class="row g-4">'
+      + params.map(p => '<div class="col-md-4">' + renderRangeBar(p) + '</div>').join('')
+      + '</div></div>';
+  });
+  const el = document.getElementById('scenic-ranges-wrap');
+  if (el) el.innerHTML = rangeHtml || '<p class="text-muted">No parameter data available.</p>';
 }
 
 // ── Action items ──────────────────────────────────────────────────────────
@@ -1157,6 +1292,11 @@ function wireFilters() {
       renderFMEA();
     });
   }
+
+  const expBtn = document.getElementById('fmea-export');
+  if (expBtn) expBtn.addEventListener('click', exportFMEA);
+  const rstBtn = document.getElementById('fmea-reset');
+  if (rstBtn) rstBtn.addEventListener('click', resetFMEA);
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────

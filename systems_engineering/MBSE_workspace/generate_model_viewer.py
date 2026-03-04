@@ -530,6 +530,10 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     </div>
     <div class="ms-auto d-flex gap-2 align-items-center">
       <div id="statsBar" class="d-flex gap-2"></div>
+      <a class="btn btn-sm btn-outline-danger ms-1" href="../06_safety/safety_report.html"
+         title="Open Safety Dashboard">
+        <i class="bi bi-shield-check me-1"></i>Safety
+      </a>
       <button class="btn btn-sm btn-outline-secondary ms-1" onclick="openGraph()"
               title="Open traceability graph view">
         <i class="bi bi-diagram-2-fill"></i> Graph
