@@ -18,6 +18,18 @@ Cross-layer realization links are added for:
   LC → LC    (component realizations, PA→LA)
   CI → PC    (physical artifact realizations, EPBS→PA)
 
+PropertyValueGroups are injected on each SF and LC element for:
+  Requirements  — reqIDs property listing all requirements that apply
+                  (source: requirements_register.md SF + LC layers)
+  FMEA          — one PropertyValueGroup per failure mode entry on
+                  safety-critical SF-01 and SF-06 sub-functions
+                  (source: 06_safety/fmea_system.md)
+
+The FMEA groups use standard Capella IntegerPropertyValue/StringPropertyValue
+elements, making the data visible in Capella's Properties panel without any
+plugin.  When ATICA4Capella is installed these same groups serve as anchors for
+its FHA/FMEA workflow.
+
 Usage:
     cd systems_engineering/MBSE_workspace
     python3 populate_capella_model.py
@@ -385,6 +397,129 @@ EPBS_CIS = [
 ]
 
 # ---------------------------------------------------------------------------
+# Requirements traceability: element name → list of requirement IDs
+# Source: requirements_register.md (SF + LC layers)
+# ---------------------------------------------------------------------------
+
+REQUIREMENTS: dict[str, list[str]] = {
+    # ── System Functions ─────────────────────────────────────────────────────
+    "SF-01 Receive and Decode Command": [
+        "REQ-SF-01-01", "REQ-SF-01-02", "REQ-SF-01-03", "REQ-SF-01-04",
+    ],
+    "SF-02 Execute Mobility": [
+        "REQ-SF-02-01", "REQ-SF-02-02", "REQ-SF-02-03",
+        "REQ-SF-02-04", "REQ-SF-02-05",
+    ],
+    "SF-02.1 Compute Drive Commands":    ["REQ-SF-02-01", "REQ-SF-02-02", "REQ-SF-02-03"],
+    "SF-02.2 Drive Wheels":              ["REQ-SF-02-03", "REQ-SF-02-05"],
+    "SF-02.3 Steer Corner Wheels":       ["REQ-SF-02-04"],
+    "SF-03 Manage Power": [
+        "REQ-SF-03-01", "REQ-SF-03-02", "REQ-SF-03-03",
+        "REQ-SF-03-04", "REQ-SF-03-05", "REQ-SF-03-06",
+    ],
+    "SF-03.1 Distribute Electrical Power": ["REQ-SF-03-01"],
+    "SF-03.2 Monitor Battery State":        ["REQ-SF-03-02", "REQ-SF-03-03",
+                                             "REQ-SF-03-05", "REQ-SF-03-06"],
+    "SF-03.3 Protect Against Overcurrent/Short": ["REQ-SF-03-04"],
+    "SF-04 Process and Publish Telemetry": [
+        "REQ-SF-04-01", "REQ-SF-04-02", "REQ-SF-04-03",
+        "REQ-SF-04-04", "REQ-SF-04-05", "REQ-SF-04-06",
+    ],
+    "SF-04.1 Sample Sensors":       ["REQ-SF-04-01", "REQ-SF-04-02"],
+    "SF-04.2 Estimate Rover State": ["REQ-SF-04-03", "REQ-SF-04-04"],
+    "SF-04.3 Transmit Telemetry":   ["REQ-SF-04-05", "REQ-SF-04-06"],
+    "SF-05 Capture and Stream Video": [
+        "REQ-SF-05-01", "REQ-SF-05-02", "REQ-SF-05-03", "REQ-SF-05-04",
+    ],
+    "SF-06 Detect and Handle Faults": [
+        "REQ-SF-06-01", "REQ-SF-06-02", "REQ-SF-06-03",
+        "REQ-SF-06-04", "REQ-SF-06-05", "REQ-SF-06-06", "REQ-SF-06-07",
+    ],
+    "SF-06.1 Monitor Motor Currents":   ["REQ-SF-06-01", "REQ-SF-06-02"],
+    "SF-06.2 Monitor Battery Voltage":  ["REQ-SF-06-03"],
+    "SF-06.3 Detect Tip Risk (IMU)":    ["REQ-SF-06-04", "REQ-SF-06-05"],
+    "SF-06.4 Execute Safe Stop":        ["REQ-SF-06-06", "REQ-SF-06-07"],
+    "SF-07 Support Payload Interface": [
+        "REQ-SF-07-01", "REQ-SF-07-02", "REQ-SF-07-03",
+        "REQ-SF-07-04", "REQ-SF-07-05",
+    ],
+    "SF-07.1 Provide Power to Payload": ["REQ-SF-07-01", "REQ-SF-07-02",
+                                         "REQ-SF-07-04", "REQ-SF-07-05"],
+    "SF-07.2 Route Payload Data":        ["REQ-SF-07-03"],
+    # ── Logical Components ───────────────────────────────────────────────────
+    "LC-01 Communication Manager": [
+        "REQ-LC-01-01", "REQ-LC-01-02", "REQ-LC-01-03",
+        "REQ-LC-01-04", "REQ-LC-01-05",
+    ],
+    "LC-02 Command Processor": [
+        "REQ-LC-02-01", "REQ-LC-02-02", "REQ-LC-02-03",
+        "REQ-LC-02-04", "REQ-LC-02-05",
+    ],
+    "LC-03 Mobility Controller": [
+        "REQ-LC-03-01", "REQ-LC-03-02", "REQ-LC-03-03",
+        "REQ-LC-03-04", "REQ-LC-03-05", "REQ-LC-03-06", "REQ-LC-03-07",
+    ],
+    "LC-04 State Estimator": [
+        "REQ-LC-04-01", "REQ-LC-04-02", "REQ-LC-04-03",
+        "REQ-LC-04-04", "REQ-LC-04-05", "REQ-LC-04-06", "REQ-LC-04-07",
+    ],
+    "LC-05 Fault Monitor": [
+        "REQ-LC-05-01", "REQ-LC-05-02", "REQ-LC-05-03",
+        "REQ-LC-05-04", "REQ-LC-05-05", "REQ-LC-05-06",
+    ],
+    "LC-06 Power Manager": [
+        "REQ-LC-06-01", "REQ-LC-06-02", "REQ-LC-06-03",
+        "REQ-LC-06-04", "REQ-LC-06-05",
+    ],
+    "LC-07 Telemetry Publisher": [
+        "REQ-LC-07-01", "REQ-LC-07-02", "REQ-LC-07-03", "REQ-LC-07-04",
+    ],
+    "LC-08 Payload Manager": [
+        "REQ-LC-08-01", "REQ-LC-08-02", "REQ-LC-08-03",
+        "REQ-LC-08-04", "REQ-LC-08-05",
+    ],
+}
+
+# ---------------------------------------------------------------------------
+# FMEA data for safety-critical functions
+# Source: 06_safety/fmea_system.md
+# Tuple fields: (fmea_id, failure_mode, severity, occurrence, detectability, hazard)
+# RPN = severity × occurrence × detectability (computed at generation time)
+# ---------------------------------------------------------------------------
+
+_FMEntry = tuple[str, str, int, int, int, str]
+
+FMEA_DATA: dict[str, list[_FMEntry]] = {
+    # SF-01: high-RPN watchdog-related failure modes
+    "SF-01 Receive and Decode Command": [
+        ("FM-01-01", "No /cmd_vel received; rover continues last command",       4, 3, 2, "H-04"),
+        ("FM-01-04", "Watchdog timer fails to fire on comm loss",                4, 2, 2, "H-04 H-08"),
+        ("FM-01-02", "Malformed Twist message executed",                         3, 2, 2, "H-05"),
+        ("FM-01-03", "Velocity limit bypass due to clamping bug",                3, 1, 3, "H-05"),
+    ],
+    # SF-06 top-level: node-crash failure mode affects all sub-functions
+    "SF-06 Detect and Handle Faults": [
+        ("FM-06-01", "Fault monitor node crash — no automated safe stop",        5, 2, 1, "H-01 H-02 H-04"),
+    ],
+    # SF-06 sub-functions: each gets the failure mode that applies to it
+    "SF-06.1 Monitor Motor Currents": [
+        ("FM-06-02", "Current threshold misconfigured — motor damage before stop", 4, 1, 2, "H-01"),
+    ],
+    "SF-06.2 Monitor Battery Voltage": [
+        ("FM-06-03", "Voltage reading drift — wrong SoC and late warnings",       3, 2, 3, "H-03"),
+    ],
+    "SF-06.3 Detect Tip Risk (IMU)": [
+        ("FM-06-03", "Tilt threshold applied to wrong axis — tip not detected",   4, 2, 2, "H-02"),
+        ("FM-04-01", "BNO055 IMU data freeze — stale orientation; tilt fails",   4, 2, 2, "H-02"),
+    ],
+    "SF-06.4 Execute Safe Stop": [
+        ("FM-06-01", "Fault monitor node crash — safe stop not reached",          5, 2, 1, "H-01 H-02 H-04"),
+        ("FM-06-04", "Safe stop incomplete — residual motor motion after fault",  4, 1, 2, "H-01 H-02"),
+        ("FM-06-05", "Latched halt not clearable after false positive",           2, 2, 2, "-"),
+    ],
+}
+
+# ---------------------------------------------------------------------------
 # XML rendering helpers
 # ---------------------------------------------------------------------------
 
@@ -427,6 +562,90 @@ def comp_real(rid: str, target: str, source: str) -> str:
 
 def phys_art_real(rid: str, target: str, source: str) -> str:
     return realization("ownedPhysicalArtifactRealizations", rid, target, source)
+
+
+_PVG_TYPE = "org.polarsys.capella.core.data.capellacore:PropertyValueGroup"
+_PV_STR   = "org.polarsys.capella.core.data.capellacore:StringPropertyValue"
+_PV_INT   = "org.polarsys.capella.core.data.capellacore:IntegerPropertyValue"
+
+
+def pvg_requirements(element_name: str, req_ids: list[str]) -> str:
+    """Return a PropertyValueGroup XML element that lists requirement IDs.
+
+    The single StringPropertyValue 'reqIDs' holds a space-separated list so
+    that Capella's Properties panel and search index can show it without any
+    add-on plugin.  ATICA4Capella and the Requirements Viewpoint can later
+    overlay richer links on top of this annotation.
+    """
+    pvg_id = mk(f"pvg:requirements:{element_name}")
+    pv_id  = mk(f"pv:reqIDs:{element_name}")
+    value  = " ".join(req_ids)
+    return (
+        f'<ownedPropertyValueGroups'
+        f' xsi:type="{_PVG_TYPE}"'
+        f' id="{pvg_id}" name="Requirements">\n'
+        f'  <ownedPropertyValues'
+        f' xsi:type="{_PV_STR}"'
+        f' id="{pv_id}" name="reqIDs" value="{value}"/>\n'
+        f'</ownedPropertyValueGroups>'
+    )
+
+
+def pvg_fmea_entry(element_name: str,
+                   fmea_id: str,
+                   failure_mode: str,
+                   severity: int,
+                   occurrence: int,
+                   detectability: int,
+                   hazard: str) -> str:
+    """Return a PropertyValueGroup XML element for one FMEA failure-mode entry.
+
+    Group name is  FMEA_<fmea_id>  (e.g. FMEA_FM-06-01).
+    Properties:
+      failure_mode  — StringPropertyValue  (description)
+      severity      — IntegerPropertyValue (1–5 scale)
+      occurrence    — IntegerPropertyValue
+      detectability — IntegerPropertyValue
+      RPN           — IntegerPropertyValue (S × O × D, computed here)
+      hazard        — StringPropertyValue  (H-xx reference(s))
+
+    ATICA4Capella recognises IntegerPropertyValue elements with these names
+    and can import them into its FMEA worksheet.
+    """
+    pvg_id = mk(f"pvg:fmea:{element_name}:{fmea_id}")
+    rpn    = severity * occurrence * detectability
+
+    def _pv_str(name: str, value: str) -> str:
+        return (
+            f'  <ownedPropertyValues'
+            f' xsi:type="{_PV_STR}"'
+            f' id="{mk(f"pv:str:{element_name}:{fmea_id}:{name}")}"'
+            f' name="{name}" value="{value}"/>'
+        )
+
+    def _pv_int(name: str, value: int) -> str:
+        return (
+            f'  <ownedPropertyValues'
+            f' xsi:type="{_PV_INT}"'
+            f' id="{mk(f"pv:int:{element_name}:{fmea_id}:{name}")}"'
+            f' name="{name}" value="{value}"/>'
+        )
+
+    body = "\n".join([
+        _pv_str("failure_mode",   failure_mode),
+        _pv_int("severity",       severity),
+        _pv_int("occurrence",     occurrence),
+        _pv_int("detectability",  detectability),
+        _pv_int("RPN",            rpn),
+        _pv_str("hazard",         hazard),
+    ])
+    return (
+        f'<ownedPropertyValueGroups'
+        f' xsi:type="{_PVG_TYPE}"'
+        f' id="{pvg_id}" name="FMEA_{fmea_id}">\n'
+        f'{body}\n'
+        f'</ownedPropertyValueGroups>'
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -473,12 +692,21 @@ def build_sa_function(sf_name: str, sub_names: list[str],
                                 mk(oact), sf_id))
     for sub in sub_names:
         sub_id = mk(sub)
+        sub_children: list[str] = [
+            fn_real(mk(f"real:{sub}->{sf_name}"), mk(sf_name), sub_id)
+        ]
+        if sub in REQUIREMENTS:
+            sub_children.append(pvg_requirements(sub, REQUIREMENTS[sub]))
+        for entry in FMEA_DATA.get(sub, []):
+            sub_children.append(pvg_fmea_entry(sub, *entry))
         children.append(
-            node("ownedSystemFunctions",
-                 [fn_real(mk(f"real:{sub}->{sf_name}"),
-                           mk(sf_name), sub_id)],
-                 id=sub_id, name=sub)
+            node("ownedSystemFunctions", sub_children, id=sub_id, name=sub)
         )
+    # Top-level SF annotations
+    if sf_name in REQUIREMENTS:
+        children.append(pvg_requirements(sf_name, REQUIREMENTS[sf_name]))
+    for entry in FMEA_DATA.get(sf_name, []):
+        children.append(pvg_fmea_entry(sf_name, *entry))
     return node("ownedSystemFunctions", children, id=sf_id, name=sf_name)
 
 
@@ -516,7 +744,16 @@ def build_la_components() -> list[str]:
         lc_id = mk(lc_name)
         # Component realizations: LC realizes SA System functions
         # (functional allocation is set via GUI; here we omit it to keep XMI valid)
-        result.append(leaf("ownedLogicalComponents", id=lc_id, name=lc_name))
+        # Inject requirements PropertyValueGroup if we have a mapping
+        req_ids = REQUIREMENTS.get(lc_name, [])
+        if req_ids:
+            result.append(
+                node("ownedLogicalComponents",
+                     [pvg_requirements(lc_name, req_ids)],
+                     id=lc_id, name=lc_name)
+            )
+        else:
+            result.append(leaf("ownedLogicalComponents", id=lc_id, name=lc_name))
     return result
 
 

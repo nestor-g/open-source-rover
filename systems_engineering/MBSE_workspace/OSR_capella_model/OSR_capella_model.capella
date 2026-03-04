@@ -132,70 +132,232 @@
               sourceElement="#60a5c18f-74f5-4beb-b1ff-9d9bbd472d25"/>
           <ownedSystemFunctions id="74170057-6e6c-59c9-870a-e0f2d3f5840d" name="SF-01 Receive and Decode Command">
             <ownedFunctionRealizations id="1b133407-7f3b-5403-b261-1fd5536e8102" targetElement="#33be6e00-43ec-55bb-970d-a7c670a7d026" sourceElement="#74170057-6e6c-59c9-870a-e0f2d3f5840d"/>
+            <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="4fd80a1d-4137-5d8b-b035-315be41df68d" name="Requirements">
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="784aa66c-35ba-5e89-9d5d-07457ccc468c" name="reqIDs" value="REQ-SF-01-01 REQ-SF-01-02 REQ-SF-01-03 REQ-SF-01-04"/>
+            </ownedPropertyValueGroups>
+            <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="aaf82e63-fedc-5108-86ab-dfa27a5565ad" name="FMEA_FM-01-01">
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="d732bcf8-e020-5fd2-95f9-368b222aef52" name="failure_mode" value="No /cmd_vel received; rover continues last command"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="02e5f238-e06a-5092-bec7-4f6d6dcd2612" name="severity" value="4"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="dff2babd-a228-5749-81f7-972acc80dcf6" name="occurrence" value="3"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="31f64a09-29cb-56fe-9488-e63d32e9bbf3" name="detectability" value="2"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="7ce10b9d-657f-5ea7-9fc9-50cefeec6e28" name="RPN" value="24"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="fac00199-d16d-5a81-8c29-51a15bdbd259" name="hazard" value="H-04"/>
+            </ownedPropertyValueGroups>
+            <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="9160e38c-9aed-5108-9893-9bd5078cfed3" name="FMEA_FM-01-04">
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="c867916a-c9ab-5039-bc15-0384453d6003" name="failure_mode" value="Watchdog timer fails to fire on comm loss"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="e755ed1e-520d-5913-a057-a91a67c71e0e" name="severity" value="4"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="c2647a90-34b1-5458-a466-236c958d61c1" name="occurrence" value="2"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="cb189cde-00e0-5b8a-9886-12fd8f07d847" name="detectability" value="2"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="786ad9f3-bf6e-5585-bedc-ab3977b42b01" name="RPN" value="16"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="4e442d3f-9434-5270-a800-bc791d6a3cfc" name="hazard" value="H-04 H-08"/>
+            </ownedPropertyValueGroups>
+            <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="2e71327c-9340-5a43-9b15-d7721bd59474" name="FMEA_FM-01-02">
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="56d5cd1d-da89-595b-b9cc-b0a69e2ae59a" name="failure_mode" value="Malformed Twist message executed"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="91fd04d1-2ed7-5e07-bcf4-e6ea0e6e6e7f" name="severity" value="3"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="2b04e176-54cd-5703-99eb-8bf8f54b3e0d" name="occurrence" value="2"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="7431cca5-6c21-5972-9798-f5774c8c2c93" name="detectability" value="2"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="189d84a8-ea5b-57df-8573-3e080bdaf45d" name="RPN" value="12"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="32685e92-f7b3-5c5e-921c-19e3a3976d11" name="hazard" value="H-05"/>
+            </ownedPropertyValueGroups>
+            <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="2f4751da-efc6-530d-b9b5-ed3d40df9d22" name="FMEA_FM-01-03">
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="97de7517-0686-593c-a6fb-30a75ed89234" name="failure_mode" value="Velocity limit bypass due to clamping bug"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="9af5f628-56cf-5b20-a776-894472ffa619" name="severity" value="3"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="35a8395d-a87a-53c2-9712-89521d8385e2" name="occurrence" value="1"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="027bc8b2-4131-507a-8f30-1cc8a92e60f0" name="detectability" value="3"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="d546c3ba-8b18-523b-a7c2-dd2a893a49ae" name="RPN" value="9"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="3f08134c-a16b-5158-bc90-f9e8b725b707" name="hazard" value="H-05"/>
+            </ownedPropertyValueGroups>
           </ownedSystemFunctions>
           <ownedSystemFunctions id="593be91f-aba3-5ef2-84a8-c028985e4ab8" name="SF-02 Execute Mobility">
             <ownedFunctionRealizations id="52f0d062-f2f0-5241-8f5b-39abc9cc13e0" targetElement="#33be6e00-43ec-55bb-970d-a7c670a7d026" sourceElement="#593be91f-aba3-5ef2-84a8-c028985e4ab8"/>
             <ownedSystemFunctions id="02bc005e-975f-5fb8-a7fe-1f1bd1b22bc4" name="SF-02.1 Compute Drive Commands">
               <ownedFunctionRealizations id="cc0d914a-9281-592f-92cd-54b440a864b4" targetElement="#593be91f-aba3-5ef2-84a8-c028985e4ab8" sourceElement="#02bc005e-975f-5fb8-a7fe-1f1bd1b22bc4"/>
+              <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="ba2b0dbf-c8ad-5151-b9b6-ebd5fc986479" name="Requirements">
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="96475a8f-f420-551d-960a-542a21c59952" name="reqIDs" value="REQ-SF-02-01 REQ-SF-02-02 REQ-SF-02-03"/>
+              </ownedPropertyValueGroups>
             </ownedSystemFunctions>
             <ownedSystemFunctions id="d6c60cbc-46a5-5ef8-b38e-11efe1fce4a6" name="SF-02.2 Drive Wheels">
               <ownedFunctionRealizations id="35a3d79b-e618-5ccd-aad2-628b5272c77c" targetElement="#593be91f-aba3-5ef2-84a8-c028985e4ab8" sourceElement="#d6c60cbc-46a5-5ef8-b38e-11efe1fce4a6"/>
+              <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="87875d35-3c21-5f73-8c7d-f303f9715901" name="Requirements">
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="f6938edc-afe7-5dc4-8540-6d443aff1f8b" name="reqIDs" value="REQ-SF-02-03 REQ-SF-02-05"/>
+              </ownedPropertyValueGroups>
             </ownedSystemFunctions>
             <ownedSystemFunctions id="9e4cf74a-8e43-541c-963b-2501b727c417" name="SF-02.3 Steer Corner Wheels">
               <ownedFunctionRealizations id="bc5e42f0-e5a7-595a-89bb-c02299d94b01" targetElement="#593be91f-aba3-5ef2-84a8-c028985e4ab8" sourceElement="#9e4cf74a-8e43-541c-963b-2501b727c417"/>
+              <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="64499f5a-f580-5dc6-a211-0dee0f7bfcea" name="Requirements">
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="87bba708-a064-5adf-8645-b450c741ee8d" name="reqIDs" value="REQ-SF-02-04"/>
+              </ownedPropertyValueGroups>
             </ownedSystemFunctions>
+            <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="aecee58c-5186-5714-9016-24cbe45570ef" name="Requirements">
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="5091f128-404b-56e7-9b12-68edf41f22ea" name="reqIDs" value="REQ-SF-02-01 REQ-SF-02-02 REQ-SF-02-03 REQ-SF-02-04 REQ-SF-02-05"/>
+            </ownedPropertyValueGroups>
           </ownedSystemFunctions>
           <ownedSystemFunctions id="0b1c2859-1215-561b-9001-9aad5af49f81" name="SF-03 Manage Power">
             <ownedFunctionRealizations id="22438d78-24a9-5ea8-9113-6b5be481658e" targetElement="#9ea64f7c-a28d-500f-8d73-77ddeee4eacd" sourceElement="#0b1c2859-1215-561b-9001-9aad5af49f81"/>
             <ownedFunctionRealizations id="95bfe609-aed1-5f25-a69a-28fd2e971dd5" targetElement="#10f98dda-39b8-5817-98c2-1a8a67c7ee12" sourceElement="#0b1c2859-1215-561b-9001-9aad5af49f81"/>
             <ownedSystemFunctions id="0841f56a-8b84-58ea-8860-6a3d8c9dabe1" name="SF-03.1 Distribute Electrical Power">
               <ownedFunctionRealizations id="48f843ff-7712-5166-add8-ada8edca8d45" targetElement="#0b1c2859-1215-561b-9001-9aad5af49f81" sourceElement="#0841f56a-8b84-58ea-8860-6a3d8c9dabe1"/>
+              <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="fac4dab7-f3cf-57ef-b27d-bce8339b19c1" name="Requirements">
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="fefabea0-03bc-5399-b686-6a1ecc4389bb" name="reqIDs" value="REQ-SF-03-01"/>
+              </ownedPropertyValueGroups>
             </ownedSystemFunctions>
             <ownedSystemFunctions id="15d9de19-3d98-5588-8039-e5f92e099673" name="SF-03.2 Monitor Battery State">
               <ownedFunctionRealizations id="40eda493-70d8-508d-94f4-14407963df72" targetElement="#0b1c2859-1215-561b-9001-9aad5af49f81" sourceElement="#15d9de19-3d98-5588-8039-e5f92e099673"/>
+              <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="d1cdf093-8f83-518d-b593-e5f08f7cfa26" name="Requirements">
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="4da49683-a5a0-5974-ab5c-1dea3f35981d" name="reqIDs" value="REQ-SF-03-02 REQ-SF-03-03 REQ-SF-03-05 REQ-SF-03-06"/>
+              </ownedPropertyValueGroups>
             </ownedSystemFunctions>
             <ownedSystemFunctions id="78c00e62-2d66-58df-8aa0-7a0eb1565f64" name="SF-03.3 Protect Against Overcurrent/Short">
               <ownedFunctionRealizations id="63bc2150-271c-560b-a8de-4338f4c8de78" targetElement="#0b1c2859-1215-561b-9001-9aad5af49f81" sourceElement="#78c00e62-2d66-58df-8aa0-7a0eb1565f64"/>
+              <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="78e19619-9c05-50c4-bbb0-be7c399c0492" name="Requirements">
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="e5542621-4298-5c05-868e-5676b8f170c7" name="reqIDs" value="REQ-SF-03-04"/>
+              </ownedPropertyValueGroups>
             </ownedSystemFunctions>
+            <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="6d87f910-bff3-5071-b4c2-fbeb7d8493d6" name="Requirements">
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="3a7c15db-3efd-58ee-9614-04891866dbb8" name="reqIDs" value="REQ-SF-03-01 REQ-SF-03-02 REQ-SF-03-03 REQ-SF-03-04 REQ-SF-03-05 REQ-SF-03-06"/>
+            </ownedPropertyValueGroups>
           </ownedSystemFunctions>
           <ownedSystemFunctions id="0175078f-e579-5f62-ae2b-9f2f6eef4e46" name="SF-04 Process and Publish Telemetry">
             <ownedFunctionRealizations id="982f612d-2e28-587f-9e09-e9a605da52db" targetElement="#10f98dda-39b8-5817-98c2-1a8a67c7ee12" sourceElement="#0175078f-e579-5f62-ae2b-9f2f6eef4e46"/>
             <ownedSystemFunctions id="c94bb744-8920-5a16-94e3-31f82f36d2cf" name="SF-04.1 Sample Sensors">
               <ownedFunctionRealizations id="bf79251b-8f33-55dd-b19a-cc24467c0811" targetElement="#0175078f-e579-5f62-ae2b-9f2f6eef4e46" sourceElement="#c94bb744-8920-5a16-94e3-31f82f36d2cf"/>
+              <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="4e2fdc6c-1ede-52c2-ac3e-3c5deeeeb45c" name="Requirements">
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="dda04cb1-8102-5fdc-aec0-a77315ad68e7" name="reqIDs" value="REQ-SF-04-01 REQ-SF-04-02"/>
+              </ownedPropertyValueGroups>
             </ownedSystemFunctions>
             <ownedSystemFunctions id="99b4fd29-c8e7-5b4d-b9e7-d71cb649e8bd" name="SF-04.2 Estimate Rover State">
               <ownedFunctionRealizations id="026c7e74-d76b-53a6-9b06-eca2351ada77" targetElement="#0175078f-e579-5f62-ae2b-9f2f6eef4e46" sourceElement="#99b4fd29-c8e7-5b4d-b9e7-d71cb649e8bd"/>
+              <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="e09c5b8f-d801-59a6-a364-a3b334628fb1" name="Requirements">
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="8e7b6da2-3adb-576e-b38c-12076cef5645" name="reqIDs" value="REQ-SF-04-03 REQ-SF-04-04"/>
+              </ownedPropertyValueGroups>
             </ownedSystemFunctions>
             <ownedSystemFunctions id="1906fa74-cceb-54a5-9ea5-94c7e9a22ad2" name="SF-04.3 Transmit Telemetry">
               <ownedFunctionRealizations id="2eb3d17c-0b3d-521d-930a-7b73bdfc9874" targetElement="#0175078f-e579-5f62-ae2b-9f2f6eef4e46" sourceElement="#1906fa74-cceb-54a5-9ea5-94c7e9a22ad2"/>
+              <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="0c64f1b1-9ac7-5a0a-b09b-7027a5c69073" name="Requirements">
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="21aa3c95-2ae9-58ce-80af-dc2b3d6aa4a0" name="reqIDs" value="REQ-SF-04-05 REQ-SF-04-06"/>
+              </ownedPropertyValueGroups>
             </ownedSystemFunctions>
+            <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="7d92b5e9-6fe3-53ff-b82f-49625f0bf006" name="Requirements">
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="b429858e-c359-51a3-b0c1-da5972587b82" name="reqIDs" value="REQ-SF-04-01 REQ-SF-04-02 REQ-SF-04-03 REQ-SF-04-04 REQ-SF-04-05 REQ-SF-04-06"/>
+            </ownedPropertyValueGroups>
           </ownedSystemFunctions>
           <ownedSystemFunctions id="e3944813-b399-5deb-961e-7f8d18733efe" name="SF-05 Capture and Stream Video">
             <ownedFunctionRealizations id="f0e8e921-6039-5a8f-b999-60f838ff5cda" targetElement="#814433ba-82d9-52b7-8a94-3d7c099a1b50" sourceElement="#e3944813-b399-5deb-961e-7f8d18733efe"/>
+            <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="2dee07ae-7f37-5e23-b9d6-304ac1ab261c" name="Requirements">
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="474cab69-e93a-56e5-8c27-d433bcc00dba" name="reqIDs" value="REQ-SF-05-01 REQ-SF-05-02 REQ-SF-05-03 REQ-SF-05-04"/>
+            </ownedPropertyValueGroups>
           </ownedSystemFunctions>
           <ownedSystemFunctions id="eafa6978-6451-5757-bae9-f7b0fab964b9" name="SF-06 Detect and Handle Faults">
             <ownedFunctionRealizations id="4c19c1cf-4bff-5025-92d4-4d17c7b6ebf9" targetElement="#f3147c3e-8dd9-5fe1-a275-146209d994a2" sourceElement="#eafa6978-6451-5757-bae9-f7b0fab964b9"/>
             <ownedSystemFunctions id="289d3f76-a902-5a51-be13-dc8f4218269a" name="SF-06.1 Monitor Motor Currents">
               <ownedFunctionRealizations id="3278d37f-8bd2-569b-bf87-9ced04a0ba61" targetElement="#eafa6978-6451-5757-bae9-f7b0fab964b9" sourceElement="#289d3f76-a902-5a51-be13-dc8f4218269a"/>
+              <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="366d5f6a-45fe-5684-a3f9-d1a27b0705f8" name="Requirements">
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="06cecd55-4fe0-50a8-91c2-0607bf97275d" name="reqIDs" value="REQ-SF-06-01 REQ-SF-06-02"/>
+              </ownedPropertyValueGroups>
+              <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="54c72110-a71a-5dd2-8f63-87568e586bea" name="FMEA_FM-06-02">
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="4533e2e3-6a95-54c9-98e5-9176fb579830" name="failure_mode" value="Current threshold misconfigured — motor damage before stop"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="7e660219-e155-50cf-baec-d2dd889a5cdb" name="severity" value="4"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="10322ea0-12b5-5897-b63e-3cdf0c32dede" name="occurrence" value="1"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="2edab1ef-005e-5289-9f24-e65015887ce4" name="detectability" value="2"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="b377b5be-9d33-50eb-8fc8-47c3a54d7e2e" name="RPN" value="8"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="f344fb2d-1a9b-5f46-90a1-027eb8c60f73" name="hazard" value="H-01"/>
+              </ownedPropertyValueGroups>
             </ownedSystemFunctions>
             <ownedSystemFunctions id="652b17bb-6897-5aab-a92b-26e732004988" name="SF-06.2 Monitor Battery Voltage">
               <ownedFunctionRealizations id="026b6e24-ec5c-593d-b66d-19e19f3309ec" targetElement="#eafa6978-6451-5757-bae9-f7b0fab964b9" sourceElement="#652b17bb-6897-5aab-a92b-26e732004988"/>
+              <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="bdb01477-7653-57db-9414-3c0a49970a4b" name="Requirements">
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="7f55daaa-7c94-5ce3-9968-1197ca4c5163" name="reqIDs" value="REQ-SF-06-03"/>
+              </ownedPropertyValueGroups>
+              <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="7b5d8f9c-bed8-5fd4-926e-dcf1acb4e6ac" name="FMEA_FM-06-03">
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="47bfb71a-13d8-5cbe-ac4f-a97fc7a681fc" name="failure_mode" value="Voltage reading drift — wrong SoC and late warnings"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="323c8f92-2b5d-5396-a345-67ec1d01350b" name="severity" value="3"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="9a27209f-3ff7-59e0-a62f-39549072d7c5" name="occurrence" value="2"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="71b298bc-914a-5acf-87c4-eb466ae698f5" name="detectability" value="3"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="aafbcd76-b981-5b44-be79-b44fd72e4e72" name="RPN" value="18"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="bc7d0b0a-a7cc-50ec-93cc-8f26fc0422af" name="hazard" value="H-03"/>
+              </ownedPropertyValueGroups>
             </ownedSystemFunctions>
             <ownedSystemFunctions id="74f28ca1-b34c-57ee-8b9f-17141d1a3f5b" name="SF-06.3 Detect Tip Risk (IMU)">
               <ownedFunctionRealizations id="fc98b4e2-9775-5e99-8cd3-4b7c4cfa3820" targetElement="#eafa6978-6451-5757-bae9-f7b0fab964b9" sourceElement="#74f28ca1-b34c-57ee-8b9f-17141d1a3f5b"/>
+              <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="460b9218-9f2e-538e-ba7f-b5df7466d300" name="Requirements">
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="b8ed4406-9f0d-5cfb-88ce-45babe4fcf3f" name="reqIDs" value="REQ-SF-06-04 REQ-SF-06-05"/>
+              </ownedPropertyValueGroups>
+              <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="b24f805c-5d27-5e9f-9c3d-d9c022b7d3c8" name="FMEA_FM-06-03">
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="bb3c38e8-2a70-5b0a-92e0-e7c36f92c02c" name="failure_mode" value="Tilt threshold applied to wrong axis — tip not detected"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="38057150-9e6e-5327-ba16-6d95556797da" name="severity" value="4"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="1a408e75-33dc-59f5-a142-03ac96e5f686" name="occurrence" value="2"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="11b87fab-1ee5-5d39-8bc3-1986c9d528b8" name="detectability" value="2"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="48dc453b-a417-503a-96cd-f079bcd62174" name="RPN" value="16"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="0e929009-7bb5-53c8-bb12-17bb3835c459" name="hazard" value="H-02"/>
+              </ownedPropertyValueGroups>
+              <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="8513ac29-85bf-5796-bc90-b5b94b6bf460" name="FMEA_FM-04-01">
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="4b5aaaad-f862-5932-8ac0-620642e7897a" name="failure_mode" value="BNO055 IMU data freeze — stale orientation; tilt fails"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="8a90f549-c0b9-5812-a5df-1c26f36b86b0" name="severity" value="4"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="ca7dc4f3-d963-5a84-8960-33e745ea0080" name="occurrence" value="2"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="8fa373d1-9402-522d-a2b2-fe0834b2f1dd" name="detectability" value="2"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="cc95bde6-bbf5-59fd-b532-6d556b4c652d" name="RPN" value="16"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="2b372076-90ad-5d25-aa2a-b9ee55db7c91" name="hazard" value="H-02"/>
+              </ownedPropertyValueGroups>
             </ownedSystemFunctions>
             <ownedSystemFunctions id="91efc490-680a-56b8-92be-3ed711881061" name="SF-06.4 Execute Safe Stop">
               <ownedFunctionRealizations id="6b760451-bc07-5b11-8fe1-804b654661e9" targetElement="#eafa6978-6451-5757-bae9-f7b0fab964b9" sourceElement="#91efc490-680a-56b8-92be-3ed711881061"/>
+              <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="96dc503f-895c-5ff8-92c5-5d5f44cc825e" name="Requirements">
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="07284de5-abdd-54f1-bcb3-ba558c2f2865" name="reqIDs" value="REQ-SF-06-06 REQ-SF-06-07"/>
+              </ownedPropertyValueGroups>
+              <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="1b3fe84c-da19-5462-a724-b6c1d93ecc64" name="FMEA_FM-06-01">
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="b34e2d98-440a-5b2d-8599-d1bd26cb6dc1" name="failure_mode" value="Fault monitor node crash — safe stop not reached"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="e60fe067-5c3c-59f8-bae2-f4b7a71e83f0" name="severity" value="5"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="3a322dbe-a191-53a6-8a82-6dc096ebe97b" name="occurrence" value="2"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="c2cbcdfb-bb8c-585d-b5d9-352cba903345" name="detectability" value="1"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="b2d3aa3f-26f5-5864-ade6-54c1c3f9b33b" name="RPN" value="10"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="8a8243de-a9f9-5fff-a0ce-51548aaf290f" name="hazard" value="H-01 H-02 H-04"/>
+              </ownedPropertyValueGroups>
+              <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="dabb02d2-0695-52bd-b961-798e9bedd0fb" name="FMEA_FM-06-04">
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="f95552fd-4648-5c00-bb2a-7f17371e9900" name="failure_mode" value="Safe stop incomplete — residual motor motion after fault"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="ae3fc79a-383d-5a25-95f5-606d38d4dbb2" name="severity" value="4"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="90615674-3e1d-5ff5-89ed-6c1f0fb09cd4" name="occurrence" value="1"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="a2fe16da-c5dd-59ab-822c-f3cc1d0a5421" name="detectability" value="2"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="76360ce6-31e8-5891-bb64-9668c8353cdb" name="RPN" value="8"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="582116d9-bd4e-50b0-ada1-7e3dcab34ed2" name="hazard" value="H-01 H-02"/>
+              </ownedPropertyValueGroups>
+              <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="84c31515-9834-5658-94f3-7b2cd9c341e6" name="FMEA_FM-06-05">
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="f9909792-11ab-5912-b4e4-471161b40f75" name="failure_mode" value="Latched halt not clearable after false positive"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="2e1354be-63be-5637-ad5d-791c7b87df71" name="severity" value="2"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="3dac909a-e0d3-54c6-9eb1-a12abe29961c" name="occurrence" value="2"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="3320a150-f56b-561a-995e-619176522dc4" name="detectability" value="2"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="49984a15-e896-5296-8ee9-c780a52c54ae" name="RPN" value="8"/>
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="9e2009a1-bc5a-546f-bece-61ee4e5bbd5c" name="hazard" value="-"/>
+              </ownedPropertyValueGroups>
             </ownedSystemFunctions>
+            <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="2088a1e5-59d7-51fc-9fd8-bfe85f2fed8a" name="Requirements">
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="335e00b1-1483-53a5-bb4c-cdae7ce599b9" name="reqIDs" value="REQ-SF-06-01 REQ-SF-06-02 REQ-SF-06-03 REQ-SF-06-04 REQ-SF-06-05 REQ-SF-06-06 REQ-SF-06-07"/>
+            </ownedPropertyValueGroups>
+            <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="83dd65a1-2d3f-5ae3-875a-1be52b66d973" name="FMEA_FM-06-01">
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="f4247153-3439-5f1a-b979-b6bbf2b507a0" name="failure_mode" value="Fault monitor node crash — no automated safe stop"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="5c9a0b05-e82b-5526-9460-d1628035fff6" name="severity" value="5"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="7da3b87b-12a5-5734-8fb7-2983dcb23a0c" name="occurrence" value="2"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="9be2406e-5045-5f81-8a6d-cc9e979ee196" name="detectability" value="1"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:IntegerPropertyValue" id="6195cc44-1c6c-5aed-870f-fc07fdf1959a" name="RPN" value="10"/>
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="11b18d87-3d82-5b60-80fc-49578949b331" name="hazard" value="H-01 H-02 H-04"/>
+            </ownedPropertyValueGroups>
           </ownedSystemFunctions>
           <ownedSystemFunctions id="681f7ee8-31da-50d6-a7be-50c8d419df14" name="SF-07 Support Payload Interface">
             <ownedFunctionRealizations id="0387803a-4dab-5f0b-80e9-41d42b2347df" targetElement="#d06b5505-7f17-520a-9def-6198b95e77db" sourceElement="#681f7ee8-31da-50d6-a7be-50c8d419df14"/>
             <ownedSystemFunctions id="ef5de14b-50ac-57d6-a152-b2d668b276e1" name="SF-07.1 Provide Power to Payload">
               <ownedFunctionRealizations id="ce2129f1-b127-5a5e-ae2c-0ea99a9b78ae" targetElement="#681f7ee8-31da-50d6-a7be-50c8d419df14" sourceElement="#ef5de14b-50ac-57d6-a152-b2d668b276e1"/>
+              <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="05c9a163-9b59-50a6-ba84-bd9a660fd705" name="Requirements">
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="6bf56682-5087-5d4a-96eb-88a4b28cbbc7" name="reqIDs" value="REQ-SF-07-01 REQ-SF-07-02 REQ-SF-07-04 REQ-SF-07-05"/>
+              </ownedPropertyValueGroups>
             </ownedSystemFunctions>
             <ownedSystemFunctions id="5583a96f-ea0e-50b8-a69e-699e7dd632de" name="SF-07.2 Route Payload Data">
               <ownedFunctionRealizations id="fe86357c-3a98-51d4-9158-a5d87f923e95" targetElement="#681f7ee8-31da-50d6-a7be-50c8d419df14" sourceElement="#5583a96f-ea0e-50b8-a69e-699e7dd632de"/>
+              <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="55decbc6-d68d-5931-bed7-f1d092769058" name="Requirements">
+                <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="25368eeb-1d6b-5229-9e59-6d3d9ef237d3" name="reqIDs" value="REQ-SF-07-03"/>
+              </ownedPropertyValueGroups>
             </ownedSystemFunctions>
+            <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="5344e648-32e5-543c-aa26-132c7fa3975c" name="Requirements">
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="962003e0-ad46-55cd-8098-f04f01c7ded1" name="reqIDs" value="REQ-SF-07-01 REQ-SF-07-02 REQ-SF-07-03 REQ-SF-07-04 REQ-SF-07-05"/>
+            </ownedPropertyValueGroups>
           </ownedSystemFunctions>
         </ownedSystemFunctions>
       </ownedFunctionPkg>
@@ -388,14 +550,46 @@
           <ownedComponentRealizations id="e50cb970-6d7e-8f9a-0b1c-2d3e4f5a6b7c"
               targetElement="#3183326b-ff3d-4163-8353-3e5a1df12e89"
               sourceElement="#226ae547-1185-4f75-acf3-7402fbeaae11"/>
-          <ownedLogicalComponents id="81c773b5-a55d-539f-ba35-e129e580401e" name="LC-01 Communication Manager"/>
-          <ownedLogicalComponents id="7544a81c-f57e-5015-a399-6bb1455f13ae" name="LC-02 Command Processor"/>
-          <ownedLogicalComponents id="24653f82-4753-59fe-945f-42a469346f16" name="LC-03 Mobility Controller"/>
-          <ownedLogicalComponents id="8384c7de-df3c-5e26-a8df-2d6eb6411413" name="LC-04 State Estimator"/>
-          <ownedLogicalComponents id="61ff6dd8-0c18-5279-bf8a-c0d43dde7dfb" name="LC-05 Fault Monitor"/>
-          <ownedLogicalComponents id="cba3cc52-dd6d-5d3f-ba8b-44f2e7119acb" name="LC-06 Power Manager"/>
-          <ownedLogicalComponents id="3568ceb1-7e3b-5506-9449-d4940d616ecb" name="LC-07 Telemetry Publisher"/>
-          <ownedLogicalComponents id="22e6c459-b19b-5d5c-bdcc-baed20e0f388" name="LC-08 Payload Manager"/>
+          <ownedLogicalComponents id="81c773b5-a55d-539f-ba35-e129e580401e" name="LC-01 Communication Manager">
+            <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="d9f75227-c6fa-5100-905c-75bbcdc7443d" name="Requirements">
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="c253a294-1bae-540c-af4e-c4a6deddf8bc" name="reqIDs" value="REQ-LC-01-01 REQ-LC-01-02 REQ-LC-01-03 REQ-LC-01-04 REQ-LC-01-05"/>
+            </ownedPropertyValueGroups>
+          </ownedLogicalComponents>
+          <ownedLogicalComponents id="7544a81c-f57e-5015-a399-6bb1455f13ae" name="LC-02 Command Processor">
+            <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="8d223e77-4d1f-5edf-8048-28c38bc58546" name="Requirements">
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="93446fc4-0cea-5216-b43d-2526eae209ad" name="reqIDs" value="REQ-LC-02-01 REQ-LC-02-02 REQ-LC-02-03 REQ-LC-02-04 REQ-LC-02-05"/>
+            </ownedPropertyValueGroups>
+          </ownedLogicalComponents>
+          <ownedLogicalComponents id="24653f82-4753-59fe-945f-42a469346f16" name="LC-03 Mobility Controller">
+            <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="aa1878a2-bc10-5ce4-a394-5e4fe59383ce" name="Requirements">
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="41964782-ff5e-5117-93de-9c804b3e9950" name="reqIDs" value="REQ-LC-03-01 REQ-LC-03-02 REQ-LC-03-03 REQ-LC-03-04 REQ-LC-03-05 REQ-LC-03-06 REQ-LC-03-07"/>
+            </ownedPropertyValueGroups>
+          </ownedLogicalComponents>
+          <ownedLogicalComponents id="8384c7de-df3c-5e26-a8df-2d6eb6411413" name="LC-04 State Estimator">
+            <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="a7953786-7d5f-5660-ad07-f6ff816f1d74" name="Requirements">
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="8ef9fdf3-c489-54d1-aefa-c266be6645b7" name="reqIDs" value="REQ-LC-04-01 REQ-LC-04-02 REQ-LC-04-03 REQ-LC-04-04 REQ-LC-04-05 REQ-LC-04-06 REQ-LC-04-07"/>
+            </ownedPropertyValueGroups>
+          </ownedLogicalComponents>
+          <ownedLogicalComponents id="61ff6dd8-0c18-5279-bf8a-c0d43dde7dfb" name="LC-05 Fault Monitor">
+            <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="9c72a78e-0cf7-548b-b4f5-b6702b9b8cfa" name="Requirements">
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="ea308197-87a5-5038-8b78-813345fb822d" name="reqIDs" value="REQ-LC-05-01 REQ-LC-05-02 REQ-LC-05-03 REQ-LC-05-04 REQ-LC-05-05 REQ-LC-05-06"/>
+            </ownedPropertyValueGroups>
+          </ownedLogicalComponents>
+          <ownedLogicalComponents id="cba3cc52-dd6d-5d3f-ba8b-44f2e7119acb" name="LC-06 Power Manager">
+            <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="7a8e47ba-6411-528a-b5a7-25705ac9ed05" name="Requirements">
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="0ac9f1d8-e6b5-5c0b-b4f8-8ca6dba336f4" name="reqIDs" value="REQ-LC-06-01 REQ-LC-06-02 REQ-LC-06-03 REQ-LC-06-04 REQ-LC-06-05"/>
+            </ownedPropertyValueGroups>
+          </ownedLogicalComponents>
+          <ownedLogicalComponents id="3568ceb1-7e3b-5506-9449-d4940d616ecb" name="LC-07 Telemetry Publisher">
+            <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="a76a0ea0-00a0-5de0-9bb9-56c05eae9627" name="Requirements">
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="c60e0c8b-ec01-5d70-86cc-25b83c63d9fc" name="reqIDs" value="REQ-LC-07-01 REQ-LC-07-02 REQ-LC-07-03 REQ-LC-07-04"/>
+            </ownedPropertyValueGroups>
+          </ownedLogicalComponents>
+          <ownedLogicalComponents id="22e6c459-b19b-5d5c-bdcc-baed20e0f388" name="LC-08 Payload Manager">
+            <ownedPropertyValueGroups xsi:type="org.polarsys.capella.core.data.capellacore:PropertyValueGroup" id="16cf14a2-3d4c-5996-8c9e-8e4e2a9bdb48" name="Requirements">
+              <ownedPropertyValues xsi:type="org.polarsys.capella.core.data.capellacore:StringPropertyValue" id="56ccbbbb-ac0b-56f9-bc04-e77855997535" name="reqIDs" value="REQ-LC-08-01 REQ-LC-08-02 REQ-LC-08-03 REQ-LC-08-04 REQ-LC-08-05"/>
+            </ownedPropertyValueGroups>
+          </ownedLogicalComponents>
         </ownedLogicalComponents>
       </ownedLogicalComponentPkg>
 
