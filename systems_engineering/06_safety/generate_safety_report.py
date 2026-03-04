@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 """
-generate_safety_report.py — OSR Safety Analysis Report
-=======================================================
-Generates a self-contained HTML safety report equivalent to the outputs of
-ATICA4Capella (FHA + FMEA worksheets) — without needing Capella installed.
+generate_safety_report.py — OSR Interactive Safety Dashboard
+=============================================================
+Generates a self-contained interactive HTML safety dashboard equivalent to
+ATICA4Capella (FHA + FMEA) outputs — without needing Capella installed.
 
-Sections produced:
-  1. Executive Summary — aggregate risk statistics
-  2. Risk Matrix — 5×5 Severity × Likelihood heatmap of all hazards
-  3. Hazard Log (FHA) — H-01…H-10 with pre/post risk scores and mitigations
-  4. System-Level FMEA — all 28 failure modes with S/O/D/RPN, colour-coded
-  5. Fault Tree Cut Sets — minimal cut sets for H-01/H-02/H-04
-  6. Scenic Scenario Coverage — which scenarios exercise which hazards
-  7. Open Action Items — high-RPN items still requiring mitigation work
+Features:
+  • Bootstrap 5 tab navigation (7 tabs)
+  • Clickable 5×5 risk matrix → cross-filters Hazard Log
+  • FMEA table: sortable columns, SF-filter dropdown, min-RPN slider
+  • Hazard log: filter by post-mitigation risk level
+  • Scenic scenario coverage matrix
+  • All data embedded as JSON — fully self-contained, no server required
 
 Usage:
     cd systems_engineering/06_safety
@@ -25,13 +24,15 @@ Output: safety_report.html  (default, next to this script)
 from __future__ import annotations
 
 import argparse
-import math
+import json
+from datetime import datetime
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Hazard log data   (source: hazard_log.md)
-# Each entry: (id, title, cause, effect, s_pre, l_pre, s_post, l_post, mitigation, reqs, scenario)
-# S = Severity 1–5, L = Likelihood 1–5, Risk = S × L
+# Each entry: (id, title, cause, effect, s_pre, l_pre, s_post, l_post,
+#              mitigation, reqs, scenario)
+# S = Severity 1–5, L = Likelihood 1–5
 # ---------------------------------------------------------------------------
 
 HAZARDS = [
@@ -251,287 +252,617 @@ FTA_CUTS = [
 ]
 
 # ---------------------------------------------------------------------------
-# Scenic scenario → hazard coverage matrix
+# Scenic scenario → hazard coverage
 # ---------------------------------------------------------------------------
 
 SCENARIO_COVERAGE = [
-    ("nominal_traverse", "Nominal Traverse",   ["H-05"]),
-    ("battery_low",      "Battery Low",         ["H-03", "H-10"]),
-    ("tilt_risk",        "Tilt Risk",            ["H-02"]),
-    ("motor_stall",      "Motor Stall",          ["H-01"]),
-    ("comm_loss",        "Comm Loss",            ["H-04"]),
+    ("nominal_traverse", "Nominal Traverse",  ["H-05"]),
+    ("battery_low",      "Battery Low",        ["H-03", "H-10"]),
+    ("tilt_risk",        "Tilt Risk",           ["H-02"]),
+    ("motor_stall",      "Motor Stall",         ["H-01"]),
+    ("comm_loss",        "Comm Loss",           ["H-04"]),
 ]
 
-ALL_HAZARDS = [h[0] for h in HAZARDS]
+ALL_HAZARD_IDS = [h[0] for h in HAZARDS]
 
 # ---------------------------------------------------------------------------
-# HTML rendering helpers
+# Serialise to JSON for embedding
 # ---------------------------------------------------------------------------
 
-_RISK_COLOR = {
-    (1, 1): "#d4edda", (1, 2): "#d4edda", (1, 3): "#fff3cd",
-    (1, 4): "#fff3cd", (1, 5): "#f8d7da",
-    (2, 1): "#d4edda", (2, 2): "#d4edda", (2, 3): "#fff3cd",
-    (2, 4): "#f8d7da", (2, 5): "#f8d7da",
-    (3, 1): "#d4edda", (3, 2): "#fff3cd", (3, 3): "#fff3cd",
-    (3, 4): "#f8d7da", (3, 5): "#f8d7da",
-    (4, 1): "#fff3cd", (4, 2): "#fff3cd", (4, 3): "#f8d7da",
-    (4, 4): "#f8d7da", (4, 5): "#f8d7da",
-    (5, 1): "#fff3cd", (5, 2): "#f8d7da", (5, 3): "#f8d7da",
-    (5, 4): "#f8d7da", (5, 5): "#f8d7da",
-}
-
-
-def _risk_label(s: int, l: int) -> str:
-    risk = s * l
-    if risk <= 4:
-        return f"Low ({risk})"
-    if risk <= 9:
-        return f"Medium ({risk})"
-    return f"High ({risk})"
-
-
-def _rpn_color(rpn: int) -> str:
-    if rpn <= 8:
-        return "#d4edda"
-    if rpn <= 16:
-        return "#fff3cd"
-    return "#f8d7da"
-
-
-def _risk_cell(s: int, l: int) -> str:
-    color = _RISK_COLOR.get((s, l), "#ffffff")
-    label = _risk_label(s, l)
-    return f'<td style="background:{color};text-align:center">{label}</td>'
-
-
-def _rpn_cell(rpn: int) -> str:
-    color = _rpn_color(rpn)
-    return f'<td style="background:{color};text-align:center;font-weight:bold">{rpn}</td>'
-
-
-def section(title: str, content: str, anchor: str = "") -> str:
-    aid = anchor or title.lower().replace(" ", "-")
-    return (
-        f'<section id="{aid}">\n'
-        f'<h2>{title}</h2>\n'
-        f'{content}\n'
-        f'</section>\n'
-    )
+def _to_json() -> dict:
+    hazards = [
+        {"id": h[0], "title": h[1], "cause": h[2], "effect": h[3],
+         "s_pre": h[4], "l_pre": h[5], "s_post": h[6], "l_post": h[7],
+         "risk_pre": h[4] * h[5], "risk_post": h[6] * h[7],
+         "mitigation": h[8], "reqs": h[9], "scenario": h[10]}
+        for h in HAZARDS
+    ]
+    fmea = [
+        {"id": f[0], "sf": f[1], "mode": f[2], "effect": f[3], "cause": f[4],
+         "s": f[5], "o": f[6], "d": f[7], "rpn": f[5] * f[6] * f[7],
+         "hazard": f[8], "mitigation": f[9]}
+        for f in FMEA
+    ]
+    fta = [
+        {"hazard_id": c[0], "hazard_name": c[1],
+         "cut_sets": c[2]}
+        for c in FTA_CUTS
+    ]
+    scenarios = [
+        {"id": s[0], "name": s[1], "covers": s[2]}
+        for s in SCENARIO_COVERAGE
+    ]
+    return {
+        "hazards":   hazards,
+        "fmea":      fmea,
+        "fta":       fta,
+        "scenarios": scenarios,
+        "all_hazard_ids": ALL_HAZARD_IDS,
+    }
 
 
 # ---------------------------------------------------------------------------
-# Section builders
+# HTML template
 # ---------------------------------------------------------------------------
 
-def build_summary() -> str:
-    high   = sum(1 for h in HAZARDS if h[6] * h[7] > 9)
-    med    = sum(1 for h in HAZARDS if 4 < h[6] * h[7] <= 9)
-    low    = sum(1 for h in HAZARDS if h[6] * h[7] <= 4)
-    hi_rpn = sum(1 for f in FMEA if f[5] * f[6] * f[7] > 16)
-    total  = len(FMEA)
-    return f"""
-<table class="summary">
-  <tr><th>Metric</th><th>Value</th></tr>
-  <tr><td>Total hazards identified</td><td>{len(HAZARDS)}</td></tr>
-  <tr><td>Post-mitigation: High risk</td><td style="background:#f8d7da">{high}</td></tr>
-  <tr><td>Post-mitigation: Medium risk</td><td style="background:#fff3cd">{med}</td></tr>
-  <tr><td>Post-mitigation: Low risk</td><td style="background:#d4edda">{low}</td></tr>
-  <tr><td>Total FMEA failure modes</td><td>{total}</td></tr>
-  <tr><td>High-RPN failure modes (RPN &gt; 16)</td><td style="background:#f8d7da">{hi_rpn}</td></tr>
-  <tr><td>Fault trees analysed</td><td>{len(FTA_CUTS)}</td></tr>
-  <tr><td>Scenic test scenarios</td><td>{len(SCENARIO_COVERAGE)}</td></tr>
-</table>
-<p><strong>Legend:</strong>
-<span class="legend-green">Low</span>
-<span class="legend-yellow">Medium</span>
-<span class="legend-red">High</span>
-</p>
+_STYLE = """\
+:root { --bs-body-font-size: .9rem; }
+body  { background: #f8f9fa; }
+.dash-header { background: #0d6efd; color: #fff; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; border-radius: 0 0 8px 8px; }
+.dash-header h1 { font-size: 1.4rem; margin: 0 0 .25rem; }
+.dash-header .meta { font-size: .8rem; opacity: .85; }
+.badge-stat { font-size: .75rem; padding: .35em .65em; }
+.nav-tabs .nav-link { font-size: .85rem; }
+/* risk matrix */
+.risk-matrix { border-collapse: collapse; }
+.risk-matrix td, .risk-matrix th { width: 90px; height: 70px; text-align: center;
+  vertical-align: middle; border: 2px solid #fff; cursor: pointer; font-size: .75rem; }
+.risk-matrix th { background: #343a40; color: #fff; cursor: default; font-weight: 600; }
+.risk-matrix td:hover { filter: brightness(.85); }
+.risk-matrix td.selected { outline: 3px solid #0d6efd; outline-offset: -3px; }
+.rm-badge { display: inline-block; background: rgba(0,0,0,.18); border-radius: 4px;
+  padding: 1px 5px; margin: 1px; font-weight: 700; }
+/* tables */
+.sortable th { cursor: pointer; user-select: none; white-space: nowrap; }
+.sortable th::after { content: " ↕"; opacity: .4; font-size: .7em; }
+.sortable th.asc::after  { content: " ↑"; opacity: 1; }
+.sortable th.desc::after { content: " ↓"; opacity: 1; }
+.rpn-high   { background: #f8d7da !important; font-weight: 700; }
+.rpn-med    { background: #fff3cd !important; }
+.rpn-low    { background: #d4edda !important; }
+.risk-high  { background: #f8d7da !important; }
+.risk-med   { background: #fff3cd !important; }
+.risk-low   { background: #d4edda !important; }
+.cov-yes    { background: #d4edda; text-align: center; }
+.cov-no     { background: #f8f9fa; text-align: center; color: #adb5bd; }
+.filter-bar { background: #fff; border: 1px solid #dee2e6; border-radius: 6px;
+  padding: .75rem 1rem; margin-bottom: 1rem; }
+.cut-set { background: #fff3cd; border-radius: 4px; padding: .4rem .75rem;
+  margin-bottom: .4rem; font-size: .85rem; }
+.cut-event { display: inline-block; background: #ffc107; border-radius: 3px;
+  padding: 2px 7px; margin: 2px; font-size: .8rem; font-weight: 600; }
+.and-gate { font-weight: 700; color: #495057; margin: 0 4px; }
 """
 
+_SCRIPT = """\
+const D = window.__OSR_SAFETY__;
 
-def build_risk_matrix() -> str:
-    # 5×5 matrix: rows = Likelihood, cols = Severity
-    rows = []
-    rows.append("<table class='matrix'><thead><tr><th>L \\ S</th>"
-                + "".join(f"<th>S={s}</th>" for s in range(1, 6))
-                + "</tr></thead><tbody>")
-    for l in range(5, 0, -1):
-        row = f"<tr><th>L={l}</th>"
-        for s in range(1, 6):
-            color = _RISK_COLOR.get((s, l), "#ffffff")
-            hazard_ids = [h[0] for h in HAZARDS if h[6] == s and h[7] == l]
-            label = "<br>".join(hazard_ids) if hazard_ids else ""
-            row += f'<td style="background:{color};text-align:center;min-width:60px">{label}</td>'
-        row += "</tr>"
-        rows.append(row)
-    rows.append("</tbody></table>")
-    return "\n".join(rows)
+// ── colour helpers ────────────────────────────────────────────────────────
+function riskClass(s, l) {
+  const r = s * l;
+  return r > 9 ? 'risk-high' : r > 4 ? 'risk-med' : 'risk-low';
+}
+function riskLabel(s, l) {
+  const r = s * l;
+  return (r > 9 ? 'High' : r > 4 ? 'Medium' : 'Low') + ' (' + r + ')';
+}
+function rpnClass(rpn) { return rpn > 16 ? 'rpn-high' : rpn > 8 ? 'rpn-med' : 'rpn-low'; }
+function riskBg(s, l) {
+  const tbl = {
+    '1,1':'#d4edda','1,2':'#d4edda','1,3':'#fff3cd','1,4':'#fff3cd','1,5':'#f8d7da',
+    '2,1':'#d4edda','2,2':'#d4edda','2,3':'#fff3cd','2,4':'#f8d7da','2,5':'#f8d7da',
+    '3,1':'#d4edda','3,2':'#fff3cd','3,3':'#fff3cd','3,4':'#f8d7da','3,5':'#f8d7da',
+    '4,1':'#fff3cd','4,2':'#fff3cd','4,3':'#f8d7da','4,4':'#f8d7da','4,5':'#f8d7da',
+    '5,1':'#fff3cd','5,2':'#f8d7da','5,3':'#f8d7da','5,4':'#f8d7da','5,5':'#f8d7da',
+  };
+  return tbl[s+','+l] || '#fff';
+}
 
+// ── risk matrix ──────────────────────────────────────────────────────────
+let matrixFilter = null;  // {s, l} or null
 
-def build_hazard_log() -> str:
-    rows = ["""<table><thead><tr>
-      <th>ID</th><th>Title</th><th>Cause</th><th>Effect</th>
-      <th>Pre-Risk (S×L)</th><th>Post-Risk (S×L)</th>
-      <th>Mitigation</th><th>Key Requirements</th><th>Scenario</th>
-    </tr></thead><tbody>"""]
-    for h in HAZARDS:
-        hid, title, cause, effect, s_pre, l_pre, s_post, l_post, mitigation, reqs, scenario = h
-        reqs_str = " ".join(reqs) if reqs else "—"
-        scen_str = scenario if scenario else "—"
-        rows.append(
-            f"<tr><td>{hid}</td><td>{title}</td><td>{cause}</td><td>{effect}</td>"
-            + _risk_cell(s_pre, l_pre)
-            + _risk_cell(s_post, l_post)
-            + f"<td>{mitigation}</td><td><code>{reqs_str}</code></td><td>{scen_str}</td></tr>"
-        )
-    rows.append("</tbody></table>")
-    return "\n".join(rows)
+function renderMatrix() {
+  // group hazards by post-mitigation (s_post, l_post)
+  const cells = {};
+  D.hazards.forEach(h => {
+    const key = h.s_post + ',' + h.l_post;
+    (cells[key] = cells[key] || []).push(h.id);
+  });
 
+  let html = '<table class="risk-matrix"><thead><tr>';
+  html += '<th>L \\ S</th>';
+  for (let s = 1; s <= 5; s++) html += '<th>S=' + s + '</th>';
+  html += '</tr></thead><tbody>';
+  for (let l = 5; l >= 1; l--) {
+    html += '<tr><th>L=' + l + '</th>';
+    for (let s = 1; s <= 5; s++) {
+      const key = s + ',' + l;
+      const bg  = riskBg(s, l);
+      const ids = cells[key] || [];
+      const sel = matrixFilter && matrixFilter.s === s && matrixFilter.l === l ? ' selected' : '';
+      const badges = ids.map(id => '<span class="rm-badge">' + id + '</span>').join('');
+      html += '<td style="background:' + bg + '" class="' + sel + '" data-s="' + s + '" data-l="' + l + '">'
+            + badges + '</td>';
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  html += '<p class="mt-2 text-muted" style="font-size:.8rem">Click a cell to filter the Hazard Log. Click again to clear.</p>';
+  document.getElementById('rm-container').innerHTML = html;
 
-def build_fmea() -> str:
-    rows = ["""<table><thead><tr>
-      <th>ID</th><th>SF</th><th>Failure Mode</th><th>Effect</th>
-      <th>Cause</th><th>S</th><th>O</th><th>D</th><th>RPN</th>
-      <th>Hazard</th><th>Mitigation</th>
-    </tr></thead><tbody>"""]
-    for f in sorted(FMEA, key=lambda x: -(x[5] * x[6] * x[7])):
-        fm_id, sf, mode, effect, cause, s, o, d, hazard, mitigation = f
-        rpn = s * o * d
-        rows.append(
-            f"<tr><td>{fm_id}</td><td>{sf}</td><td>{mode}</td><td>{effect}</td>"
-            f"<td>{cause}</td>"
-            f'<td style="text-align:center">{s}</td>'
-            f'<td style="text-align:center">{o}</td>'
-            f'<td style="text-align:center">{d}</td>'
-            + _rpn_cell(rpn)
-            + f"<td>{hazard}</td><td>{mitigation}</td></tr>"
-        )
-    rows.append("</tbody></table>")
-    rows.append('<p><em>Table sorted by descending RPN. S = Severity, O = Occurrence, D = Detectability (1–5 each).</em></p>')
-    return "\n".join(rows)
+  document.querySelectorAll('.risk-matrix td[data-s]').forEach(td => {
+    td.addEventListener('click', () => {
+      const s = +td.dataset.s, l = +td.dataset.l;
+      matrixFilter = (matrixFilter && matrixFilter.s === s && matrixFilter.l === l) ? null : {s, l};
+      renderMatrix();
+      renderHazards();
+    });
+  });
+}
 
+// ── hazard log ────────────────────────────────────────────────────────────
+let hazardRiskFilter = 'all';
 
-def build_fta() -> str:
-    parts = []
-    for hazard_id, hazard_name, cut_sets in FTA_CUTS:
-        parts.append(f"<h3>{hazard_id} — {hazard_name}</h3>")
-        parts.append("<p><strong>Minimal cut sets (each is sufficient to cause the top event):</strong></p>")
-        parts.append("<ol>")
-        for cs in cut_sets:
-            events = " AND ".join(f"<em>{e}</em>" for e in cs)
-            parts.append(f"  <li>{events}</li>")
-        parts.append("</ol>")
-    return "\n".join(parts)
+function renderHazards() {
+  let data = D.hazards;
+  if (matrixFilter) {
+    data = data.filter(h => h.s_post === matrixFilter.s && h.l_post === matrixFilter.l);
+  }
+  if (hazardRiskFilter !== 'all') {
+    data = data.filter(h => {
+      const r = h.risk_post;
+      if (hazardRiskFilter === 'high')   return r > 9;
+      if (hazardRiskFilter === 'medium') return r > 4 && r <= 9;
+      if (hazardRiskFilter === 'low')    return r <= 4;
+    });
+  }
 
+  const filterNote = matrixFilter
+    ? '<div class="alert alert-info py-1 px-2 mb-2" style="font-size:.82rem">⬅ Filtered by Risk Matrix: S=' + matrixFilter.s + ' L=' + matrixFilter.l + ' &nbsp; <a href="#" id="clear-matrix-filter">Clear</a></div>'
+    : '';
 
-def build_scenario_coverage() -> str:
-    cols = ALL_HAZARDS
-    rows = [
-        "<table><thead><tr><th>Scenario</th>"
-        + "".join(f"<th>{h}</th>" for h in cols)
-        + "</tr></thead><tbody>"
-    ]
-    for scen_id, scen_name, covered in SCENARIO_COVERAGE:
-        cells = "".join(
-            f'<td style="text-align:center;background:{"#d4edda" if h in covered else "#f8f9fa"}">'
-            + ("✓" if h in covered else "")
-            + "</td>"
-            for h in cols
-        )
-        rows.append(f"<tr><td><strong>{scen_name}</strong><br><code>{scen_id}.scenic</code></td>{cells}</tr>")
-    rows.append("</tbody></table>")
-    rows.append('<p><em>✓ = scenario explicitly exercises this hazard\'s boundary conditions.</em></p>')
-    return "\n".join(rows)
+  let rows = data.map(h => {
+    const reqs = h.reqs.map(r => '<code>' + r + '</code>').join(' ');
+    return '<tr>'
+      + '<td><strong>' + h.id + '</strong></td>'
+      + '<td>' + h.title + '</td>'
+      + '<td>' + h.cause + '</td>'
+      + '<td>' + h.effect + '</td>'
+      + '<td class="' + riskClass(h.s_pre, h.l_pre) + '">' + riskLabel(h.s_pre, h.l_pre) + '</td>'
+      + '<td class="' + riskClass(h.s_post, h.l_post) + '">' + riskLabel(h.s_post, h.l_post) + '</td>'
+      + '<td>' + h.mitigation + '</td>'
+      + '<td>' + reqs + '</td>'
+      + '<td>' + (h.scenario || '—') + '</td>'
+      + '</tr>';
+  }).join('');
 
+  document.getElementById('hazard-table-wrap').innerHTML = filterNote +
+    '<table class="table table-sm table-bordered table-hover"><thead class="table-dark"><tr>'
+    + '<th>ID</th><th>Title</th><th>Cause</th><th>Effect</th>'
+    + '<th>Pre-Risk</th><th>Post-Risk</th><th>Mitigation</th><th>Requirements</th><th>Scenario</th>'
+    + '</tr></thead><tbody>' + rows + '</tbody></table>'
+    + '<p class="text-muted" style="font-size:.8rem">Showing ' + data.length + ' of ' + D.hazards.length + ' hazards.</p>';
 
-def build_action_items() -> str:
-    high = [(f[0], f[1], f[2], f[5] * f[6] * f[7], f[-1]) for f in FMEA if f[5] * f[6] * f[7] > 16]
-    high.sort(key=lambda x: -x[3])
-    rows = ["""<table><thead><tr>
-      <th>FM ID</th><th>SF</th><th>Failure Mode</th><th>RPN</th><th>Required Action</th>
-    </tr></thead><tbody>"""]
-    for fm_id, sf, mode, rpn, mitigation in high:
-        rows.append(
-            f"<tr><td>{fm_id}</td><td>{sf}</td><td>{mode}</td>"
-            + _rpn_cell(rpn)
-            + f"<td>{mitigation}</td></tr>"
-        )
-    rows.append("</tbody></table>")
-    return "\n".join(rows)
+  const cl = document.getElementById('clear-matrix-filter');
+  if (cl) cl.addEventListener('click', e => { e.preventDefault(); matrixFilter = null; renderMatrix(); renderHazards(); });
+}
 
+// ── FMEA table ────────────────────────────────────────────────────────────
+let fmeaSort  = {col: 'rpn', dir: -1};
+let fmeaSF    = 'all';
+let fmeaMinRPN = 0;
 
-# ---------------------------------------------------------------------------
-# Full HTML document
-# ---------------------------------------------------------------------------
+function renderFMEA() {
+  let data = D.fmea
+    .filter(f => fmeaSF === 'all' || f.sf === fmeaSF)
+    .filter(f => f.rpn >= fmeaMinRPN);
 
-CSS = """
-* { box-sizing: border-box; }
-body { font-family: system-ui, sans-serif; margin: 2rem; color: #212529; max-width: 1400px; }
-h1 { border-bottom: 3px solid #0d6efd; padding-bottom: .5rem; }
-h2 { margin-top: 2.5rem; border-bottom: 1px solid #dee2e6; padding-bottom: .25rem; color: #0d6efd; }
-h3 { margin-top: 1.5rem; color: #495057; }
-nav { background: #f8f9fa; border: 1px solid #dee2e6; padding: 1rem 1.5rem;
-      border-radius: 4px; margin-bottom: 2rem; }
-nav a { display: inline-block; margin-right: 1.5rem; color: #0d6efd; text-decoration: none; }
-table { width: 100%; border-collapse: collapse; font-size: .88rem; margin: 1rem 0; }
-th, td { border: 1px solid #dee2e6; padding: .4rem .6rem; vertical-align: top; }
-thead th { background: #343a40; color: #fff; }
-tr:nth-child(even) { background: #f8f9fa; }
-.summary td:last-child, .summary th:last-child { font-weight: bold; }
-.matrix td, .matrix th { min-width: 70px; }
-.legend-green  { background: #d4edda; padding: 2px 8px; border-radius: 3px; margin-right: .5rem; }
-.legend-yellow { background: #fff3cd; padding: 2px 8px; border-radius: 3px; margin-right: .5rem; }
-.legend-red    { background: #f8d7da; padding: 2px 8px; border-radius: 3px; margin-right: .5rem; }
-code { background: #f8f9fa; padding: 1px 4px; border-radius: 3px; font-size: .85em; }
-footer { margin-top: 3rem; color: #6c757d; font-size: .85rem; border-top: 1px solid #dee2e6; padding-top: 1rem; }
+  data = [...data].sort((a, b) => {
+    let va = a[fmeaSort.col], vb = b[fmeaSort.col];
+    if (typeof va === 'string') va = va.toLowerCase(), vb = vb.toLowerCase();
+    return fmeaSort.dir * (va < vb ? -1 : va > vb ? 1 : 0);
+  });
+
+  const cols = [
+    {key:'id', label:'ID'}, {key:'sf', label:'SF'},
+    {key:'mode', label:'Failure Mode'}, {key:'effect', label:'Effect'},
+    {key:'cause', label:'Cause'},
+    {key:'s', label:'S'}, {key:'o', label:'O'}, {key:'d', label:'D'},
+    {key:'rpn', label:'RPN'}, {key:'hazard', label:'Hazard'},
+    {key:'mitigation', label:'Mitigation'},
+  ];
+
+  const thead = cols.map(c => {
+    let cls = '';
+    if (fmeaSort.col === c.key) cls = fmeaSort.dir === 1 ? 'asc' : 'desc';
+    return '<th class="' + cls + '" data-col="' + c.key + '">' + c.label + '</th>';
+  }).join('');
+
+  const tbody = data.map(f =>
+    '<tr>'
+    + '<td>' + f.id + '</td>'
+    + '<td><span class="badge bg-secondary">' + f.sf + '</span></td>'
+    + '<td>' + f.mode + '</td>'
+    + '<td>' + f.effect + '</td>'
+    + '<td>' + f.cause + '</td>'
+    + '<td class="text-center">' + f.s + '</td>'
+    + '<td class="text-center">' + f.o + '</td>'
+    + '<td class="text-center">' + f.d + '</td>'
+    + '<td class="text-center ' + rpnClass(f.rpn) + '">' + f.rpn + '</td>'
+    + '<td>' + f.hazard + '</td>'
+    + '<td>' + f.mitigation + '</td>'
+    + '</tr>'
+  ).join('');
+
+  document.getElementById('fmea-wrap').innerHTML =
+    '<table class="table table-sm table-bordered sortable"><thead class="table-dark"><tr>'
+    + thead + '</tr></thead><tbody>' + tbody + '</tbody></table>'
+    + '<p class="text-muted" style="font-size:.8rem">Showing ' + data.length + ' of ' + D.fmea.length
+    + ' failure modes. Click a column header to sort.</p>';
+
+  document.querySelectorAll('#fmea-wrap th[data-col]').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.col;
+      fmeaSort = {col, dir: fmeaSort.col === col ? -fmeaSort.dir : -1};
+      renderFMEA();
+    });
+  });
+}
+
+// ── FTA ──────────────────────────────────────────────────────────────────
+function renderFTA() {
+  const html = D.fta.map(ft => {
+    const sets = ft.cut_sets.map((cs, i) => {
+      const events = cs.map(e => '<span class="cut-event">' + e + '</span>').join('<span class="and-gate">AND</span>');
+      return '<div class="cut-set"><strong>CS-' + (i+1) + ':</strong> ' + events + '</div>';
+    }).join('');
+    return '<div class="mb-4"><h5>' + ft.hazard_id + ' — ' + ft.hazard_name + '</h5>'
+      + '<p class="text-muted mb-2" style="font-size:.83rem">Minimal cut sets — each is sufficient to cause the top event:</p>'
+      + sets + '</div>';
+  }).join('<hr>');
+  document.getElementById('fta-wrap').innerHTML = html;
+}
+
+// ── Scenario coverage ─────────────────────────────────────────────────────
+function renderScenarios() {
+  const ids = D.all_hazard_ids;
+  const head = '<tr><th>Scenario</th>' + ids.map(h => '<th>' + h + '</th>').join('') + '</tr>';
+  const rows = D.scenarios.map(sc => {
+    const cells = ids.map(h =>
+      sc.covers.includes(h)
+        ? '<td class="cov-yes">✓</td>'
+        : '<td class="cov-no">·</td>'
+    ).join('');
+    return '<tr><td><strong>' + sc.name + '</strong><br><code style="font-size:.75rem">' + sc.id + '.scenic</code></td>' + cells + '</tr>';
+  }).join('');
+  document.getElementById('scenarios-wrap').innerHTML =
+    '<div style="overflow-x:auto"><table class="table table-sm table-bordered">'
+    + '<thead class="table-dark">' + head + '</thead><tbody>' + rows + '</tbody></table></div>'
+    + '<p class="text-muted" style="font-size:.8rem">✓ = scenario explicitly exercises this hazard\'s boundary conditions.</p>';
+}
+
+// ── Action items ──────────────────────────────────────────────────────────
+function renderActions() {
+  const high = D.fmea.filter(f => f.rpn > 16).sort((a,b) => b.rpn - a.rpn);
+  const rows = high.map(f =>
+    '<tr><td>' + f.id + '</td>'
+    + '<td><span class="badge bg-secondary">' + f.sf + '</span></td>'
+    + '<td>' + f.mode + '</td>'
+    + '<td class="text-center ' + rpnClass(f.rpn) + '">' + f.rpn + '</td>'
+    + '<td>' + f.mitigation + '</td></tr>'
+  ).join('');
+  document.getElementById('actions-wrap').innerHTML =
+    '<table class="table table-sm table-bordered"><thead class="table-dark"><tr>'
+    + '<th>FM ID</th><th>SF</th><th>Failure Mode</th><th>RPN</th><th>Required Action</th>'
+    + '</tr></thead><tbody>' + rows + '</tbody></table>'
+    + '<p class="text-muted" style="font-size:.8rem">' + high.length + ' failure modes with RPN > 16.</p>';
+}
+
+// ── Summary stats ─────────────────────────────────────────────────────────
+function renderSummary() {
+  const hHigh = D.hazards.filter(h => h.risk_post > 9).length;
+  const hMed  = D.hazards.filter(h => h.risk_post > 4 && h.risk_post <= 9).length;
+  const hLow  = D.hazards.filter(h => h.risk_post <= 4).length;
+  const fHigh = D.fmea.filter(f => f.rpn > 16).length;
+  document.getElementById('stat-hazards').textContent  = D.hazards.length;
+  document.getElementById('stat-h-high').textContent   = hHigh;
+  document.getElementById('stat-h-med').textContent    = hMed;
+  document.getElementById('stat-h-low').textContent    = hLow;
+  document.getElementById('stat-fm').textContent       = D.fmea.length;
+  document.getElementById('stat-fm-high').textContent  = fHigh;
+  document.getElementById('stat-fta').textContent      = D.fta.length;
+  document.getElementById('stat-scen').textContent     = D.scenarios.length;
+}
+
+// ── Filter wiring ─────────────────────────────────────────────────────────
+function wireFilters() {
+  // hazard risk filter
+  document.querySelectorAll('[data-hrisk]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      hazardRiskFilter = btn.dataset.hrisk;
+      document.querySelectorAll('[data-hrisk]').forEach(b =>
+        b.classList.toggle('active', b === btn));
+      renderHazards();
+    });
+  });
+
+  // FMEA SF filter
+  const sfSel = document.getElementById('sf-select');
+  if (sfSel) sfSel.addEventListener('change', () => { fmeaSF = sfSel.value; renderFMEA(); });
+
+  // FMEA min RPN
+  const rpnSlider = document.getElementById('rpn-min');
+  const rpnVal    = document.getElementById('rpn-val');
+  if (rpnSlider) {
+    rpnSlider.addEventListener('input', () => {
+      fmeaMinRPN = +rpnSlider.value;
+      rpnVal.textContent = fmeaMinRPN;
+      renderFMEA();
+    });
+  }
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  renderSummary();
+  renderMatrix();
+  renderHazards();
+  renderFMEA();
+  renderFTA();
+  renderScenarios();
+  renderActions();
+  wireFilters();
+});
 """
 
 
 def generate_report() -> str:
-    from datetime import datetime
-    date_str = datetime.now().strftime("%Y-%m-%d")
+    data = _to_json()
+    data_json = json.dumps(data, ensure_ascii=False, indent=2)
+    date_str  = datetime.now().strftime("%Y-%m-%d")
+    all_sfs   = sorted({f[1] for f in FMEA})
+    sf_opts   = "".join(f'<option value="{sf}">{sf}</option>' for sf in all_sfs)
+
+    high_count = sum(1 for h in HAZARDS if h[6] * h[7] > 9)
+    fm_high    = sum(1 for f in FMEA if f[5] * f[6] * f[7] > 16)
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OSR Safety Analysis Report</title>
-<style>{CSS}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OSR Safety Dashboard</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<style>{_STYLE}</style>
 </head>
 <body>
 
-<h1>JPL Open Source Rover — Safety Analysis Report</h1>
-<p><strong>Document:</strong> OSR-SAF-REPORT-001 &nbsp;|&nbsp;
-   <strong>Status:</strong> DRAFT &nbsp;|&nbsp;
-   <strong>Generated:</strong> {date_str}</p>
+<!-- Header -->
+<div class="dash-header">
+  <div class="container-fluid">
+    <h1><i class="bi bi-shield-check me-2"></i>JPL Open Source Rover — Safety Dashboard</h1>
+    <div class="meta">OSR-SAF-REPORT-001 &nbsp;|&nbsp; DRAFT &nbsp;|&nbsp; Generated: {date_str}</div>
+    <div class="mt-2">
+      <span class="badge bg-light text-dark badge-stat me-1">
+        <span id="stat-hazards">—</span> hazards
+      </span>
+      <span class="badge bg-danger badge-stat me-1">
+        <span id="stat-h-high">—</span> high post-risk
+      </span>
+      <span class="badge bg-warning text-dark badge-stat me-1">
+        <span id="stat-h-med">—</span> medium
+      </span>
+      <span class="badge bg-success badge-stat me-1">
+        <span id="stat-h-low">—</span> low
+      </span>
+      <span class="badge bg-light text-dark badge-stat me-1 ms-2">
+        <span id="stat-fm">—</span> failure modes
+      </span>
+      <span class="badge bg-danger badge-stat me-1">
+        <span id="stat-fm-high">—</span> RPN&gt;16
+      </span>
+      <span class="badge bg-light text-dark badge-stat me-1 ms-2">
+        <span id="stat-fta">—</span> fault trees
+      </span>
+      <span class="badge bg-light text-dark badge-stat">
+        <span id="stat-scen">—</span> Scenic scenarios
+      </span>
+    </div>
+  </div>
+</div>
 
-<nav>
-  <strong>Contents:</strong>
-  <a href="#executive-summary">1. Executive Summary</a>
-  <a href="#risk-matrix">2. Risk Matrix</a>
-  <a href="#hazard-log">3. Hazard Log (FHA)</a>
-  <a href="#fmea">4. System FMEA</a>
-  <a href="#fault-tree-cut-sets">5. FTA Cut Sets</a>
-  <a href="#scenic-scenario-coverage">6. Scenario Coverage</a>
-  <a href="#open-action-items">7. Open Action Items</a>
-</nav>
+<div class="container-fluid px-4">
 
-{section("Executive Summary", build_summary(), "executive-summary")}
-{section("Risk Matrix", build_risk_matrix(), "risk-matrix")}
-{section("Hazard Log (FHA)", build_hazard_log(), "hazard-log")}
-{section("System-Level FMEA", build_fmea(), "fmea")}
-{section("Fault Tree Cut Sets", build_fta(), "fault-tree-cut-sets")}
-{section("Scenic Scenario Coverage", build_scenario_coverage(), "scenic-scenario-coverage")}
-{section("Open Action Items (RPN > 16)", build_action_items(), "open-action-items")}
+  <!-- Tab nav -->
+  <ul class="nav nav-tabs mb-3" id="mainTabs">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-summary">
+      <i class="bi bi-bar-chart-fill me-1"></i>Summary</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-matrix">
+      <i class="bi bi-grid-3x3-gap-fill me-1"></i>Risk Matrix</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-hazards">
+      <i class="bi bi-exclamation-triangle-fill me-1"></i>Hazard Log</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-fmea">
+      <i class="bi bi-table me-1"></i>FMEA</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-fta">
+      <i class="bi bi-diagram-3-fill me-1"></i>FTA Cut Sets</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-scenarios">
+      <i class="bi bi-play-circle-fill me-1"></i>Scenarios</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-actions">
+      <i class="bi bi-flag-fill me-1"></i>Action Items
+      <span class="badge bg-danger ms-1">{fm_high}</span></a></li>
+  </ul>
 
-<footer>
-  Generated by <code>generate_safety_report.py</code> — OSR MBSE safety analysis pipeline.<br>
-  Emulates ATICA4Capella FHA + FMEA outputs (ANZEN Engineering) without requiring Capella.<br>
-  Source data: <code>hazard_log.md</code>, <code>fmea_system.md</code>, <code>fta.md</code>,
-  <code>scenarios/</code>
-</footer>
+  <div class="tab-content">
 
+    <!-- Summary -->
+    <div class="tab-pane fade show active" id="tab-summary">
+      <div class="row g-3 mb-3">
+        <div class="col-md-3">
+          <div class="card h-100">
+            <div class="card-body">
+              <h6 class="card-title text-muted">Hazards Identified</h6>
+              <p class="display-6 mb-0" id="sum-hz">{len(HAZARDS)}</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card h-100 border-danger">
+            <div class="card-body">
+              <h6 class="card-title text-muted">High Post-Risk Hazards</h6>
+              <p class="display-6 mb-0 text-danger" id="sum-hh">{high_count}</p>
+              <small class="text-muted">All residual due to S=5 (severity cannot be reduced)</small>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card h-100">
+            <div class="card-body">
+              <h6 class="card-title text-muted">Failure Modes (FMEA)</h6>
+              <p class="display-6 mb-0">{len(FMEA)}</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card h-100 border-warning">
+            <div class="card-body">
+              <h6 class="card-title text-muted">High-RPN Items (RPN&gt;16)</h6>
+              <p class="display-6 mb-0 text-warning" id="sum-rpm">{fm_high}</p>
+              <small class="text-muted">Require priority action</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <h6>Legend</h6>
+          <div class="d-flex gap-3 flex-wrap">
+            <div><span class="badge risk-high">High risk</span> S×L &gt; 9</div>
+            <div><span class="badge risk-med">Medium risk</span> S×L 5–9</div>
+            <div><span class="badge risk-low">Low risk</span> S×L ≤ 4</div>
+            <div><span class="badge rpn-high">RPN &gt; 16</span> Priority action</div>
+            <div><span class="badge rpn-med">RPN 9–16</span> Monitor</div>
+            <div><span class="badge rpn-low">RPN ≤ 8</span> Acceptable</div>
+          </div>
+          <p class="text-muted mt-2 mb-0" style="font-size:.82rem">
+            S = Severity, L = Likelihood, O = Occurrence, D = Detectability (1–5 each).<br>
+            High-severity hazards (S=5) remain red post-mitigation by definition — mitigation
+            reduces Likelihood, not Severity. This is expected and correct.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Risk Matrix -->
+    <div class="tab-pane fade" id="tab-matrix">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Post-Mitigation Risk Matrix (Severity × Likelihood)</h5>
+          <p class="text-muted" style="font-size:.83rem">
+            Hazard IDs shown at their post-mitigation (S, L) position.
+            Click any cell to filter the Hazard Log to that risk level.
+          </p>
+          <div id="rm-container"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hazard Log -->
+    <div class="tab-pane fade" id="tab-hazards">
+      <div class="filter-bar d-flex gap-2 align-items-center flex-wrap">
+        <strong>Filter by post-risk:</strong>
+        <button class="btn btn-sm btn-outline-secondary active" data-hrisk="all">All</button>
+        <button class="btn btn-sm btn-danger"  data-hrisk="high">High</button>
+        <button class="btn btn-sm btn-warning" data-hrisk="medium">Medium</button>
+        <button class="btn btn-sm btn-success" data-hrisk="low">Low</button>
+        <span class="text-muted ms-2" style="font-size:.8rem">Risk Matrix selection also filters this table.</span>
+      </div>
+      <div id="hazard-table-wrap"></div>
+    </div>
+
+    <!-- FMEA -->
+    <div class="tab-pane fade" id="tab-fmea">
+      <div class="filter-bar d-flex gap-3 align-items-center flex-wrap">
+        <div>
+          <label class="form-label mb-0 me-1" style="font-size:.83rem"><strong>System Function:</strong></label>
+          <select class="form-select form-select-sm d-inline-block w-auto" id="sf-select">
+            <option value="all">All SFs</option>
+            {sf_opts}
+          </select>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <label class="mb-0" style="font-size:.83rem"><strong>Min RPN:</strong></label>
+          <input type="range" class="form-range" id="rpn-min" min="0" max="25" step="1" value="0" style="width:140px">
+          <span id="rpn-val" class="badge bg-secondary">0</span>
+        </div>
+      </div>
+      <div id="fmea-wrap"></div>
+    </div>
+
+    <!-- FTA -->
+    <div class="tab-pane fade" id="tab-fta">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Fault Tree Minimal Cut Sets</h5>
+          <p class="text-muted" style="font-size:.83rem">
+            Each cut set is a minimal combination of basic events sufficient to cause the top-level hazard.
+            Eliminating any single cut set breaks the fault path.
+          </p>
+          <div id="fta-wrap"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scenarios -->
+    <div class="tab-pane fade" id="tab-scenarios">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Scenic Scenario Coverage Matrix</h5>
+          <p class="text-muted" style="font-size:.83rem">
+            Each row is a Scenic probabilistic scenario file. ✓ indicates the scenario
+            explicitly exercises the boundary conditions of that hazard.
+          </p>
+          <div id="scenarios-wrap"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Items -->
+    <div class="tab-pane fade" id="tab-actions">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Open Action Items — RPN &gt; 16</h5>
+          <p class="text-muted" style="font-size:.83rem">
+            These failure modes have a Risk Priority Number above the acceptable threshold
+            and require specific mitigation actions before the rover is considered safe to operate.
+          </p>
+          <div id="actions-wrap"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /.tab-content -->
+
+  <footer class="text-muted mt-4 mb-3 pt-3 border-top" style="font-size:.78rem">
+    Generated by <code>generate_safety_report.py</code> — OSR MBSE safety analysis pipeline.<br>
+    Emulates ATICA4Capella FHA + FMEA outputs without requiring Capella.<br>
+    Source data: <code>hazard_log.md</code> · <code>fmea_system.md</code> · <code>fta.md</code> · <code>scenarios/</code>
+  </footer>
+</div>
+
+<script>window.__OSR_SAFETY__ = {data_json};</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>{_SCRIPT}</script>
 </body>
 </html>
 """
@@ -543,7 +874,7 @@ def generate_report() -> str:
 
 def main() -> None:
     p = argparse.ArgumentParser(
-        description="Generate OSR standalone HTML safety report"
+        description="Generate OSR interactive HTML safety dashboard"
     )
     p.add_argument("--out", "-o", default=None,
                    help="Output path (default: safety_report.html next to this script)")
@@ -555,6 +886,7 @@ def main() -> None:
     print(f"Written: {out}")
     print(f"  {len(HAZARDS)} hazards, {len(FMEA)} failure modes, "
           f"{len(FTA_CUTS)} fault trees, {len(SCENARIO_COVERAGE)} scenarios")
+    print(f"  Interactive dashboard — open in any browser")
 
 
 if __name__ == "__main__":

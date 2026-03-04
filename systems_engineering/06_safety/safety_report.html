@@ -2,196 +2,1174 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OSR Safety Analysis Report</title>
-<style>
-* { box-sizing: border-box; }
-body { font-family: system-ui, sans-serif; margin: 2rem; color: #212529; max-width: 1400px; }
-h1 { border-bottom: 3px solid #0d6efd; padding-bottom: .5rem; }
-h2 { margin-top: 2.5rem; border-bottom: 1px solid #dee2e6; padding-bottom: .25rem; color: #0d6efd; }
-h3 { margin-top: 1.5rem; color: #495057; }
-nav { background: #f8f9fa; border: 1px solid #dee2e6; padding: 1rem 1.5rem;
-      border-radius: 4px; margin-bottom: 2rem; }
-nav a { display: inline-block; margin-right: 1.5rem; color: #0d6efd; text-decoration: none; }
-table { width: 100%; border-collapse: collapse; font-size: .88rem; margin: 1rem 0; }
-th, td { border: 1px solid #dee2e6; padding: .4rem .6rem; vertical-align: top; }
-thead th { background: #343a40; color: #fff; }
-tr:nth-child(even) { background: #f8f9fa; }
-.summary td:last-child, .summary th:last-child { font-weight: bold; }
-.matrix td, .matrix th { min-width: 70px; }
-.legend-green  { background: #d4edda; padding: 2px 8px; border-radius: 3px; margin-right: .5rem; }
-.legend-yellow { background: #fff3cd; padding: 2px 8px; border-radius: 3px; margin-right: .5rem; }
-.legend-red    { background: #f8d7da; padding: 2px 8px; border-radius: 3px; margin-right: .5rem; }
-code { background: #f8f9fa; padding: 1px 4px; border-radius: 3px; font-size: .85em; }
-footer { margin-top: 3rem; color: #6c757d; font-size: .85rem; border-top: 1px solid #dee2e6; padding-top: 1rem; }
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OSR Safety Dashboard</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<style>:root { --bs-body-font-size: .9rem; }
+body  { background: #f8f9fa; }
+.dash-header { background: #0d6efd; color: #fff; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; border-radius: 0 0 8px 8px; }
+.dash-header h1 { font-size: 1.4rem; margin: 0 0 .25rem; }
+.dash-header .meta { font-size: .8rem; opacity: .85; }
+.badge-stat { font-size: .75rem; padding: .35em .65em; }
+.nav-tabs .nav-link { font-size: .85rem; }
+/* risk matrix */
+.risk-matrix { border-collapse: collapse; }
+.risk-matrix td, .risk-matrix th { width: 90px; height: 70px; text-align: center;
+  vertical-align: middle; border: 2px solid #fff; cursor: pointer; font-size: .75rem; }
+.risk-matrix th { background: #343a40; color: #fff; cursor: default; font-weight: 600; }
+.risk-matrix td:hover { filter: brightness(.85); }
+.risk-matrix td.selected { outline: 3px solid #0d6efd; outline-offset: -3px; }
+.rm-badge { display: inline-block; background: rgba(0,0,0,.18); border-radius: 4px;
+  padding: 1px 5px; margin: 1px; font-weight: 700; }
+/* tables */
+.sortable th { cursor: pointer; user-select: none; white-space: nowrap; }
+.sortable th::after { content: " ↕"; opacity: .4; font-size: .7em; }
+.sortable th.asc::after  { content: " ↑"; opacity: 1; }
+.sortable th.desc::after { content: " ↓"; opacity: 1; }
+.rpn-high   { background: #f8d7da !important; font-weight: 700; }
+.rpn-med    { background: #fff3cd !important; }
+.rpn-low    { background: #d4edda !important; }
+.risk-high  { background: #f8d7da !important; }
+.risk-med   { background: #fff3cd !important; }
+.risk-low   { background: #d4edda !important; }
+.cov-yes    { background: #d4edda; text-align: center; }
+.cov-no     { background: #f8f9fa; text-align: center; color: #adb5bd; }
+.filter-bar { background: #fff; border: 1px solid #dee2e6; border-radius: 6px;
+  padding: .75rem 1rem; margin-bottom: 1rem; }
+.cut-set { background: #fff3cd; border-radius: 4px; padding: .4rem .75rem;
+  margin-bottom: .4rem; font-size: .85rem; }
+.cut-event { display: inline-block; background: #ffc107; border-radius: 3px;
+  padding: 2px 7px; margin: 2px; font-size: .8rem; font-weight: 600; }
+.and-gate { font-weight: 700; color: #495057; margin: 0 4px; }
 </style>
 </head>
 <body>
 
-<h1>JPL Open Source Rover — Safety Analysis Report</h1>
-<p><strong>Document:</strong> OSR-SAF-REPORT-001 &nbsp;|&nbsp;
-   <strong>Status:</strong> DRAFT &nbsp;|&nbsp;
-   <strong>Generated:</strong> 2026-03-03</p>
+<!-- Header -->
+<div class="dash-header">
+  <div class="container-fluid">
+    <h1><i class="bi bi-shield-check me-2"></i>JPL Open Source Rover — Safety Dashboard</h1>
+    <div class="meta">OSR-SAF-REPORT-001 &nbsp;|&nbsp; DRAFT &nbsp;|&nbsp; Generated: 2026-03-03</div>
+    <div class="mt-2">
+      <span class="badge bg-light text-dark badge-stat me-1">
+        <span id="stat-hazards">—</span> hazards
+      </span>
+      <span class="badge bg-danger badge-stat me-1">
+        <span id="stat-h-high">—</span> high post-risk
+      </span>
+      <span class="badge bg-warning text-dark badge-stat me-1">
+        <span id="stat-h-med">—</span> medium
+      </span>
+      <span class="badge bg-success badge-stat me-1">
+        <span id="stat-h-low">—</span> low
+      </span>
+      <span class="badge bg-light text-dark badge-stat me-1 ms-2">
+        <span id="stat-fm">—</span> failure modes
+      </span>
+      <span class="badge bg-danger badge-stat me-1">
+        <span id="stat-fm-high">—</span> RPN&gt;16
+      </span>
+      <span class="badge bg-light text-dark badge-stat me-1 ms-2">
+        <span id="stat-fta">—</span> fault trees
+      </span>
+      <span class="badge bg-light text-dark badge-stat">
+        <span id="stat-scen">—</span> Scenic scenarios
+      </span>
+    </div>
+  </div>
+</div>
 
-<nav>
-  <strong>Contents:</strong>
-  <a href="#executive-summary">1. Executive Summary</a>
-  <a href="#risk-matrix">2. Risk Matrix</a>
-  <a href="#hazard-log">3. Hazard Log (FHA)</a>
-  <a href="#fmea">4. System FMEA</a>
-  <a href="#fault-tree-cut-sets">5. FTA Cut Sets</a>
-  <a href="#scenic-scenario-coverage">6. Scenario Coverage</a>
-  <a href="#open-action-items">7. Open Action Items</a>
-</nav>
+<div class="container-fluid px-4">
 
-<section id="executive-summary">
-<h2>Executive Summary</h2>
+  <!-- Tab nav -->
+  <ul class="nav nav-tabs mb-3" id="mainTabs">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-summary">
+      <i class="bi bi-bar-chart-fill me-1"></i>Summary</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-matrix">
+      <i class="bi bi-grid-3x3-gap-fill me-1"></i>Risk Matrix</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-hazards">
+      <i class="bi bi-exclamation-triangle-fill me-1"></i>Hazard Log</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-fmea">
+      <i class="bi bi-table me-1"></i>FMEA</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-fta">
+      <i class="bi bi-diagram-3-fill me-1"></i>FTA Cut Sets</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-scenarios">
+      <i class="bi bi-play-circle-fill me-1"></i>Scenarios</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-actions">
+      <i class="bi bi-flag-fill me-1"></i>Action Items
+      <span class="badge bg-danger ms-1">6</span></a></li>
+  </ul>
 
-<table class="summary">
-  <tr><th>Metric</th><th>Value</th></tr>
-  <tr><td>Total hazards identified</td><td>10</td></tr>
-  <tr><td>Post-mitigation: High risk</td><td style="background:#f8d7da">0</td></tr>
-  <tr><td>Post-mitigation: Medium risk</td><td style="background:#fff3cd">7</td></tr>
-  <tr><td>Post-mitigation: Low risk</td><td style="background:#d4edda">3</td></tr>
-  <tr><td>Total FMEA failure modes</td><td>27</td></tr>
-  <tr><td>High-RPN failure modes (RPN &gt; 16)</td><td style="background:#f8d7da">6</td></tr>
-  <tr><td>Fault trees analysed</td><td>3</td></tr>
-  <tr><td>Scenic test scenarios</td><td>5</td></tr>
-</table>
-<p><strong>Legend:</strong>
-<span class="legend-green">Low</span>
-<span class="legend-yellow">Medium</span>
-<span class="legend-red">High</span>
-</p>
+  <div class="tab-content">
 
-</section>
+    <!-- Summary -->
+    <div class="tab-pane fade show active" id="tab-summary">
+      <div class="row g-3 mb-3">
+        <div class="col-md-3">
+          <div class="card h-100">
+            <div class="card-body">
+              <h6 class="card-title text-muted">Hazards Identified</h6>
+              <p class="display-6 mb-0" id="sum-hz">10</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card h-100 border-danger">
+            <div class="card-body">
+              <h6 class="card-title text-muted">High Post-Risk Hazards</h6>
+              <p class="display-6 mb-0 text-danger" id="sum-hh">0</p>
+              <small class="text-muted">All residual due to S=5 (severity cannot be reduced)</small>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card h-100">
+            <div class="card-body">
+              <h6 class="card-title text-muted">Failure Modes (FMEA)</h6>
+              <p class="display-6 mb-0">27</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card h-100 border-warning">
+            <div class="card-body">
+              <h6 class="card-title text-muted">High-RPN Items (RPN&gt;16)</h6>
+              <p class="display-6 mb-0 text-warning" id="sum-rpm">6</p>
+              <small class="text-muted">Require priority action</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <h6>Legend</h6>
+          <div class="d-flex gap-3 flex-wrap">
+            <div><span class="badge risk-high">High risk</span> S×L &gt; 9</div>
+            <div><span class="badge risk-med">Medium risk</span> S×L 5–9</div>
+            <div><span class="badge risk-low">Low risk</span> S×L ≤ 4</div>
+            <div><span class="badge rpn-high">RPN &gt; 16</span> Priority action</div>
+            <div><span class="badge rpn-med">RPN 9–16</span> Monitor</div>
+            <div><span class="badge rpn-low">RPN ≤ 8</span> Acceptable</div>
+          </div>
+          <p class="text-muted mt-2 mb-0" style="font-size:.82rem">
+            S = Severity, L = Likelihood, O = Occurrence, D = Detectability (1–5 each).<br>
+            High-severity hazards (S=5) remain red post-mitigation by definition — mitigation
+            reduces Likelihood, not Severity. This is expected and correct.
+          </p>
+        </div>
+      </div>
+    </div>
 
-<section id="risk-matrix">
-<h2>Risk Matrix</h2>
-<table class='matrix'><thead><tr><th>L \ S</th><th>S=1</th><th>S=2</th><th>S=3</th><th>S=4</th><th>S=5</th></tr></thead><tbody>
-<tr><th>L=5</th><td style="background:#f8d7da;text-align:center;min-width:60px"></td><td style="background:#f8d7da;text-align:center;min-width:60px"></td><td style="background:#f8d7da;text-align:center;min-width:60px"></td><td style="background:#f8d7da;text-align:center;min-width:60px"></td><td style="background:#f8d7da;text-align:center;min-width:60px"></td></tr>
-<tr><th>L=4</th><td style="background:#fff3cd;text-align:center;min-width:60px"></td><td style="background:#f8d7da;text-align:center;min-width:60px"></td><td style="background:#f8d7da;text-align:center;min-width:60px"></td><td style="background:#f8d7da;text-align:center;min-width:60px"></td><td style="background:#f8d7da;text-align:center;min-width:60px"></td></tr>
-<tr><th>L=3</th><td style="background:#fff3cd;text-align:center;min-width:60px"></td><td style="background:#fff3cd;text-align:center;min-width:60px"></td><td style="background:#fff3cd;text-align:center;min-width:60px"></td><td style="background:#f8d7da;text-align:center;min-width:60px"></td><td style="background:#f8d7da;text-align:center;min-width:60px"></td></tr>
-<tr><th>L=2</th><td style="background:#d4edda;text-align:center;min-width:60px"></td><td style="background:#d4edda;text-align:center;min-width:60px"></td><td style="background:#fff3cd;text-align:center;min-width:60px"></td><td style="background:#fff3cd;text-align:center;min-width:60px">H-05<br>H-08</td><td style="background:#f8d7da;text-align:center;min-width:60px"></td></tr>
-<tr><th>L=1</th><td style="background:#d4edda;text-align:center;min-width:60px"></td><td style="background:#d4edda;text-align:center;min-width:60px"></td><td style="background:#d4edda;text-align:center;min-width:60px">H-07</td><td style="background:#fff3cd;text-align:center;min-width:60px">H-03<br>H-09</td><td style="background:#fff3cd;text-align:center;min-width:60px">H-01<br>H-02<br>H-04<br>H-06<br>H-10</td></tr>
-</tbody></table>
-</section>
+    <!-- Risk Matrix -->
+    <div class="tab-pane fade" id="tab-matrix">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Post-Mitigation Risk Matrix (Severity × Likelihood)</h5>
+          <p class="text-muted" style="font-size:.83rem">
+            Hazard IDs shown at their post-mitigation (S, L) position.
+            Click any cell to filter the Hazard Log to that risk level.
+          </p>
+          <div id="rm-container"></div>
+        </div>
+      </div>
+    </div>
 
-<section id="hazard-log">
-<h2>Hazard Log (FHA)</h2>
-<table><thead><tr>
-      <th>ID</th><th>Title</th><th>Cause</th><th>Effect</th>
-      <th>Pre-Risk (S×L)</th><th>Post-Risk (S×L)</th>
-      <th>Mitigation</th><th>Key Requirements</th><th>Scenario</th>
-    </tr></thead><tbody>
-<tr><td>H-01</td><td>Motor Overcurrent / Fire</td><td>Wheel stall, obstacle jam, short circuit</td><td>Motor winding damage, PCB damage, potential fire</td><td style="background:#f8d7da;text-align:center">High (15)</td><td style="background:#fff3cd;text-align:center">Medium (5)</td><td>SF-06.1 monitors per-motor current; safe stop at ≥ 10 A (100 ms response); in-line fuse</td><td><code>REQ-SF-06-01 REQ-SF-06-02</code></td><td>motor_stall</td></tr>
-<tr><td>H-02</td><td>Tip / Rollover</td><td>Excessive slope, dynamic cornering at speed</td><td>Rover inversion, hardware damage, injury risk</td><td style="background:#f8d7da;text-align:center">High (10)</td><td style="background:#fff3cd;text-align:center">Medium (5)</td><td>SF-06.3 monitors BNO055 IMU roll/pitch; safe stop at ≥ 35° within 100 ms</td><td><code>REQ-SF-06-04 REQ-SF-06-05</code></td><td>tilt_risk</td></tr>
-<tr><td>H-03</td><td>Battery Over-Discharge</td><td>Extended mission without monitoring, sensor failure</td><td>LiPo cell damage, reduced lifespan, potential venting</td><td style="background:#f8d7da;text-align:center">High (12)</td><td style="background:#fff3cd;text-align:center">Low (4)</td><td>SF-06.2 warns at < 11.0 V and stops at < 10.5 V; INA219 voltage monitoring at ≥ 1 Hz</td><td><code>REQ-SF-06-03</code></td><td>battery_low</td></tr>
-<tr><td>H-04</td><td>Runaway After Comm Loss</td><td>Wi-Fi dropout while rover is moving</td><td>Uncontrolled motion, collision with persons or objects</td><td style="background:#f8d7da;text-align:center">High (15)</td><td style="background:#fff3cd;text-align:center">Medium (5)</td><td>SF-01 1-second watchdog (LF-01.4) zeros velocity on /cmd_vel timeout</td><td><code>REQ-SF-01-02</code></td><td>comm_loss</td></tr>
-<tr><td>H-05</td><td>Collision / Unintended Motion</td><td>Operator error, malformed command, velocity bypass</td><td>Impact with obstacles, persons, or terrain</td><td style="background:#f8d7da;text-align:center">High (12)</td><td style="background:#fff3cd;text-align:center">Medium (8)</td><td>Velocity clamped to ±0.4 m/s; NaN/Inf discard; safety observer protocol</td><td><code>REQ-SF-01-03 REQ-LC-02-03</code></td><td>—</td></tr>
-<tr><td>H-06</td><td>Electrical Short Circuit</td><td>Wiring fault, connector failure, PCB fault</td><td>PCB damage, fire, loss of rover</td><td style="background:#f8d7da;text-align:center">High (10)</td><td style="background:#fff3cd;text-align:center">Medium (5)</td><td>In-line fuse ≤ 30 A between battery and PCB; positive-retention connectors</td><td><code>REQ-OA-033-03</code></td><td>—</td></tr>
-<tr><td>H-07</td><td>Payload Overcurrent</td><td>Payload draws more than rated power (> 2 A)</td><td>PCB rail damage, system reset, payload damage</td><td style="background:#fff3cd;text-align:center">Medium (9)</td><td style="background:#d4edda;text-align:center">Low (3)</td><td>SF-07.2 monitors payload current via INA219; software cutoff at configurable limit</td><td><code>REQ-SF-07-02</code></td><td>—</td></tr>
-<tr><td>H-08</td><td>Software Crash / Node Failure</td><td>Python exception, OOM, kernel panic</td><td>Loss of control, no safe stop if fault monitor crashes</td><td style="background:#f8d7da;text-align:center">High (12)</td><td style="background:#fff3cd;text-align:center">Medium (8)</td><td>ROS node respawn; hardware RoboClaw serial timeout as independent backup</td><td><code>REQ-OA-023-02</code></td><td>—</td></tr>
-<tr><td>H-09</td><td>Structural Failure</td><td>Excessive load, manufacturing defect, fatigue</td><td>Collapse during traverse, hardware damage</td><td style="background:#fff3cd;text-align:center">Low (4)</td><td style="background:#fff3cd;text-align:center">Low (4)</td><td>Mechanical design with safety factor; post-session hardware inspection</td><td><code>REQ-OA-022-01</code></td><td>—</td></tr>
-<tr><td>H-10</td><td>LiPo Thermal Runaway</td><td>Overcharge, cell damage, puncture during transport</td><td>Fire, toxic gas release</td><td style="background:#fff3cd;text-align:center">Medium (5)</td><td style="background:#fff3cd;text-align:center">Medium (5)</td><td>Charge at ≤ 1C; never charge unattended; store in LiPo-safe bag; no in-rover charging</td><td><code>REQ-OA-021-01 REQ-OA-021-02 REQ-OA-021-03</code></td><td>—</td></tr>
-</tbody></table>
-</section>
+    <!-- Hazard Log -->
+    <div class="tab-pane fade" id="tab-hazards">
+      <div class="filter-bar d-flex gap-2 align-items-center flex-wrap">
+        <strong>Filter by post-risk:</strong>
+        <button class="btn btn-sm btn-outline-secondary active" data-hrisk="all">All</button>
+        <button class="btn btn-sm btn-danger"  data-hrisk="high">High</button>
+        <button class="btn btn-sm btn-warning" data-hrisk="medium">Medium</button>
+        <button class="btn btn-sm btn-success" data-hrisk="low">Low</button>
+        <span class="text-muted ms-2" style="font-size:.8rem">Risk Matrix selection also filters this table.</span>
+      </div>
+      <div id="hazard-table-wrap"></div>
+    </div>
 
-<section id="fmea">
-<h2>System-Level FMEA</h2>
-<table><thead><tr>
-      <th>ID</th><th>SF</th><th>Failure Mode</th><th>Effect</th>
-      <th>Cause</th><th>S</th><th>O</th><th>D</th><th>RPN</th>
-      <th>Hazard</th><th>Mitigation</th>
-    </tr></thead><tbody>
-<tr><td>FM-05-02</td><td>SF-05</td><td>Video latency > 1 s</td><td>Operator makes control decisions on stale image</td><td>Network congestion</td><td style="text-align:center">3</td><td style="text-align:center">3</td><td style="text-align:center">3</td><td style="background:#f8d7da;text-align:center;font-weight:bold">27</td><td>H-05</td><td>Reduce resolution/framerate; operator uses safety observer for proximity</td></tr>
-<tr><td>FM-01-01</td><td>SF-01</td><td>No /cmd_vel received</td><td>Rover continues last velocity command</td><td>Wi-Fi dropout, ground station crash</td><td style="text-align:center">4</td><td style="text-align:center">3</td><td style="text-align:center">2</td><td style="background:#f8d7da;text-align:center;font-weight:bold">24</td><td>H-04</td><td>1-second watchdog (LF-01.4) zeroes velocity</td></tr>
-<tr><td>FM-03-04</td><td>SF-03</td><td>Voltage reading drift</td><td>Wrong SoC estimate</td><td>INA219 calibration error</td><td style="text-align:center">3</td><td style="text-align:center">2</td><td style="text-align:center">3</td><td style="background:#f8d7da;text-align:center;font-weight:bold">18</td><td>H-03</td><td>Factory calibration; compare against multimeter at setup</td></tr>
-<tr><td>FM-04-02</td><td>SF-04</td><td>Odometry divergence</td><td>Position estimate unusable</td><td>Wheel slip on loose surface</td><td style="text-align:center">2</td><td style="text-align:center">3</td><td style="text-align:center">3</td><td style="background:#f8d7da;text-align:center;font-weight:bold">18</td><td>—</td><td>Expected on loose terrain; operator uses visual navigation</td></tr>
-<tr><td>FM-04-03</td><td>SF-04</td><td>Telemetry topic drops</td><td>Operator loses state visibility</td><td>Wi-Fi bandwidth saturation</td><td style="text-align:center">3</td><td style="text-align:center">3</td><td style="text-align:center">2</td><td style="background:#f8d7da;text-align:center;font-weight:bold">18</td><td>H-04</td><td>Reduce camera resolution; prioritise /battery_state and /diagnostics</td></tr>
-<tr><td>FM-04-04</td><td>SF-04</td><td>IMU attitude filter divergence</td><td>Roll/pitch estimate wrong</td><td>Gyro bias at startup</td><td style="text-align:center">3</td><td style="text-align:center">2</td><td style="text-align:center">3</td><td style="background:#f8d7da;text-align:center;font-weight:bold">18</td><td>H-02</td><td>Allow 5-second warm-up on level surface before traverse</td></tr>
-<tr><td>FM-01-04</td><td>SF-01</td><td>Watchdog timer fails to fire</td><td>No auto-halt on comm loss</td><td>Software bug, rospy.Timer crash</td><td style="text-align:center">4</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="background:#fff3cd;text-align:center;font-weight:bold">16</td><td>H-04 H-08</td><td>Node supervisor restarts; hardware RoboClaw timeout</td></tr>
-<tr><td>FM-04-01</td><td>SF-04</td><td>BNO055 IMU data freeze</td><td>Stale orientation; tilt detection fails</td><td>I2C lockup, sensor reset</td><td style="text-align:center">4</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="background:#fff3cd;text-align:center;font-weight:bold">16</td><td>H-02</td><td>Timestamp staleness check in LC-05; alert on /diagnostics</td></tr>
-<tr><td>FM-06-03</td><td>SF-06</td><td>Tilt threshold wrong axis</td><td>Tip not detected</td><td>IMU mounted with wrong orientation</td><td style="text-align:center">4</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="background:#fff3cd;text-align:center;font-weight:bold">16</td><td>H-02</td><td>Tilt calibration test during setup; verify correct roll/pitch mapping</td></tr>
-<tr><td>FM-01-02</td><td>SF-01</td><td>Malformed Twist message</td><td>Incorrect motion command executed</td><td>Corrupted packet, ROS serialisation bug</td><td style="text-align:center">3</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="background:#fff3cd;text-align:center;font-weight:bold">12</td><td>H-05</td><td>NaN/Inf check (LF-01.2) discards bad packets</td></tr>
-<tr><td>FM-02-01</td><td>SF-02</td><td>Kinematic model error</td><td>Wrong wheel speed ratio — drift or spin</td><td>Geometry parameter mismatch</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="text-align:center">3</td><td style="background:#fff3cd;text-align:center;font-weight:bold">12</td><td>H-05</td><td>Calibration test during build</td></tr>
-<tr><td>FM-02-04</td><td>SF-02</td><td>Single wheel encoder failure</td><td>Odometry drift</td><td>Encoder damaged; cable break</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="text-align:center">3</td><td style="background:#fff3cd;text-align:center;font-weight:bold">12</td><td>—</td><td>/diagnostics flags abnormal encoder delta</td></tr>
-<tr><td>FM-07-02</td><td>SF-07</td><td>Payload overcurrent</td><td>PCB rail damage, system reset</td><td>Payload hardware fault</td><td style="text-align:center">3</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="background:#fff3cd;text-align:center;font-weight:bold">12</td><td>H-07</td><td>SF-07.2 cuts rail at configurable limit (default 2 A)</td></tr>
-<tr><td>FM-07-03</td><td>SF-07</td><td>I2C bus contention from payload</td><td>LC-04 sensor reads corrupted</td><td>Payload device using same I2C address</td><td style="text-align:center">3</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="background:#fff3cd;text-align:center;font-weight:bold">12</td><td>H-08</td><td>Reserve I2C addresses in payload interface spec</td></tr>
-<tr><td>FM-06-01</td><td>SF-06</td><td>Fault monitor node crash</td><td>No automated safe stop</td><td>Python exception, OOM</td><td style="text-align:center">5</td><td style="text-align:center">2</td><td style="text-align:center">1</td><td style="background:#fff3cd;text-align:center;font-weight:bold">10</td><td>H-01 H-02 H-04</td><td>respawn=true in ROS launch; hardware RoboClaw timeout as backup</td></tr>
-<tr><td>FM-01-03</td><td>SF-01</td><td>Velocity limit bypass</td><td>Rover moves faster than safe speed</td><td>Software bug in clamping logic</td><td style="text-align:center">3</td><td style="text-align:center">1</td><td style="text-align:center">3</td><td style="background:#fff3cd;text-align:center;font-weight:bold">9</td><td>H-05</td><td>Unit test for LF-01.3 clamp at all boundary values</td></tr>
-<tr><td>FM-02-03</td><td>SF-02</td><td>PCA9685 I2C lockup</td><td>Steering servos freeze at last angle</td><td>I2C bus contention, power glitch</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="background:#d4edda;text-align:center;font-weight:bold">8</td><td>—</td><td>I2C bus reset; servo mechanically safe at any fixed angle</td></tr>
-<tr><td>FM-03-01</td><td>SF-03</td><td>INA219 I2C failure</td><td>No battery monitoring</td><td>Hardware fault, I2C address conflict</td><td style="text-align:center">4</td><td style="text-align:center">2</td><td style="text-align:center">1</td><td style="background:#d4edda;text-align:center;font-weight:bold">8</td><td>H-03</td><td>/diagnostics reports sensor loss; operator should halt</td></tr>
-<tr><td>FM-06-02</td><td>SF-06</td><td>Current threshold too high</td><td>Motor damage before shutdown</td><td>Threshold misconfigured</td><td style="text-align:center">4</td><td style="text-align:center">1</td><td style="text-align:center">2</td><td style="background:#d4edda;text-align:center;font-weight:bold">8</td><td>H-01</td><td>Threshold validated against motor stall current spec (≤ 10 A)</td></tr>
-<tr><td>FM-06-04</td><td>SF-06</td><td>Safe stop doesn't zero all motors</td><td>Residual motion after fault</td><td>Bug in SF-06.4 implementation</td><td style="text-align:center">4</td><td style="text-align:center">1</td><td style="text-align:center">2</td><td style="background:#d4edda;text-align:center;font-weight:bold">8</td><td>H-01 H-02</td><td>Integration test: verify all 3 RoboClaws receive 0 setpoint</td></tr>
-<tr><td>FM-06-05</td><td>SF-06</td><td>Latched halt not clearable</td><td>Rover stuck after false positive</td><td>Software bug in latch logic</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="background:#d4edda;text-align:center;font-weight:bold">8</td><td>—</td><td>Operator can restart fault_node via SSH</td></tr>
-<tr><td>FM-07-04</td><td>SF-07</td><td>Payload pulls voltage rail low</td><td>RPi undervoltage, system reset</td><td>Payload draws excessive current on 5V rail</td><td style="text-align:center">4</td><td style="text-align:center">2</td><td style="text-align:center">1</td><td style="background:#d4edda;text-align:center;font-weight:bold">8</td><td>H-08</td><td>Separate payload 5V rail from RPi 5V rail on PCB</td></tr>
-<tr><td>FM-02-02</td><td>SF-02</td><td>RoboClaw USB serial loss</td><td>Motors stop abruptly</td><td>Cable fault, USB enumeration failure</td><td style="text-align:center">3</td><td style="text-align:center">2</td><td style="text-align:center">1</td><td style="background:#d4edda;text-align:center;font-weight:bold">6</td><td>H-09</td><td>RoboClaw has built-in serial timeout; logs error</td></tr>
-<tr><td>FM-05-01</td><td>SF-05</td><td>Camera node crash</td><td>No video feed</td><td>USB disconnect, raspicam error</td><td style="text-align:center">2</td><td style="text-align:center">3</td><td style="text-align:center">1</td><td style="background:#d4edda;text-align:center;font-weight:bold">6</td><td>H-05</td><td>Optional component; mission continues without video</td></tr>
-<tr><td>FM-03-02</td><td>SF-03</td><td>Buck converter failure</td><td>Loss of 5V logic rail</td><td>Component failure, overcurrent</td><td style="text-align:center">4</td><td style="text-align:center">1</td><td style="text-align:center">1</td><td style="background:#d4edda;text-align:center;font-weight:bold">4</td><td>H-08</td><td>PCB fuse; RPi and RoboClaws lose power simultaneously (safe)</td></tr>
-<tr><td>FM-03-03</td><td>SF-03</td><td>Fuse blow (expected)</td><td>Circuit protected, motor stops</td><td>Overcurrent event</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="text-align:center">1</td><td style="background:#d4edda;text-align:center;font-weight:bold">4</td><td>H-01</td><td>Replace fuse; inspect wiring before resuming</td></tr>
-<tr><td>FM-07-01</td><td>SF-07</td><td>Payload power switch failure</td><td>Payload always on or always off</td><td>GPIO driver bug, transistor failure</td><td style="text-align:center">2</td><td style="text-align:center">1</td><td style="text-align:center">2</td><td style="background:#d4edda;text-align:center;font-weight:bold">4</td><td>H-07</td><td>Manual power disconnect available; software toggle verified in test</td></tr>
-</tbody></table>
-<p><em>Table sorted by descending RPN. S = Severity, O = Occurrence, D = Detectability (1–5 each).</em></p>
-</section>
+    <!-- FMEA -->
+    <div class="tab-pane fade" id="tab-fmea">
+      <div class="filter-bar d-flex gap-3 align-items-center flex-wrap">
+        <div>
+          <label class="form-label mb-0 me-1" style="font-size:.83rem"><strong>System Function:</strong></label>
+          <select class="form-select form-select-sm d-inline-block w-auto" id="sf-select">
+            <option value="all">All SFs</option>
+            <option value="SF-01">SF-01</option><option value="SF-02">SF-02</option><option value="SF-03">SF-03</option><option value="SF-04">SF-04</option><option value="SF-05">SF-05</option><option value="SF-06">SF-06</option><option value="SF-07">SF-07</option>
+          </select>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <label class="mb-0" style="font-size:.83rem"><strong>Min RPN:</strong></label>
+          <input type="range" class="form-range" id="rpn-min" min="0" max="25" step="1" value="0" style="width:140px">
+          <span id="rpn-val" class="badge bg-secondary">0</span>
+        </div>
+      </div>
+      <div id="fmea-wrap"></div>
+    </div>
 
-<section id="fault-tree-cut-sets">
-<h2>Fault Tree Cut Sets</h2>
-<h3>H-01 — Motor Overcurrent</h3>
-<p><strong>Minimal cut sets (each is sufficient to cause the top event):</strong></p>
-<ol>
-  <li><em>Current sensor fails</em> AND <em>Software threshold not reached</em></li>
-  <li><em>RoboClaw ignores setpoint = 0</em> AND <em>SF-06.4 bug</em></li>
-  <li><em>In-line fuse rated too high</em></li>
-</ol>
-<h3>H-02 — Tip / Rollover</h3>
-<p><strong>Minimal cut sets (each is sufficient to cause the top event):</strong></p>
-<ol>
-  <li><em>IMU data frozen</em> AND <em>Staleness check bypassed</em></li>
-  <li><em>IMU orientation wrong</em> AND <em>Tilt threshold on wrong axis</em></li>
-  <li><em>Rover speed > 0.4 m/s</em> AND <em>Velocity clamp bypassed</em></li>
-</ol>
-<h3>H-04 — Runaway After Comm Loss</h3>
-<p><strong>Minimal cut sets (each is sufficient to cause the top event):</strong></p>
-<ol>
-  <li><em>Wi-Fi drops</em> AND <em>Watchdog timer fails</em></li>
-  <li><em>Wi-Fi drops</em> AND <em>RoboClaw serial timeout not configured</em></li>
-</ol>
-</section>
+    <!-- FTA -->
+    <div class="tab-pane fade" id="tab-fta">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Fault Tree Minimal Cut Sets</h5>
+          <p class="text-muted" style="font-size:.83rem">
+            Each cut set is a minimal combination of basic events sufficient to cause the top-level hazard.
+            Eliminating any single cut set breaks the fault path.
+          </p>
+          <div id="fta-wrap"></div>
+        </div>
+      </div>
+    </div>
 
-<section id="scenic-scenario-coverage">
-<h2>Scenic Scenario Coverage</h2>
-<table><thead><tr><th>Scenario</th><th>H-01</th><th>H-02</th><th>H-03</th><th>H-04</th><th>H-05</th><th>H-06</th><th>H-07</th><th>H-08</th><th>H-09</th><th>H-10</th></tr></thead><tbody>
-<tr><td><strong>Nominal Traverse</strong><br><code>nominal_traverse.scenic</code></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#d4edda">✓</td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td></tr>
-<tr><td><strong>Battery Low</strong><br><code>battery_low.scenic</code></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#d4edda">✓</td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#d4edda">✓</td></tr>
-<tr><td><strong>Tilt Risk</strong><br><code>tilt_risk.scenic</code></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#d4edda">✓</td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td></tr>
-<tr><td><strong>Motor Stall</strong><br><code>motor_stall.scenic</code></td><td style="text-align:center;background:#d4edda">✓</td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td></tr>
-<tr><td><strong>Comm Loss</strong><br><code>comm_loss.scenic</code></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#d4edda">✓</td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td><td style="text-align:center;background:#f8f9fa"></td></tr>
-</tbody></table>
-<p><em>✓ = scenario explicitly exercises this hazard's boundary conditions.</em></p>
-</section>
+    <!-- Scenarios -->
+    <div class="tab-pane fade" id="tab-scenarios">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Scenic Scenario Coverage Matrix</h5>
+          <p class="text-muted" style="font-size:.83rem">
+            Each row is a Scenic probabilistic scenario file. ✓ indicates the scenario
+            explicitly exercises the boundary conditions of that hazard.
+          </p>
+          <div id="scenarios-wrap"></div>
+        </div>
+      </div>
+    </div>
 
-<section id="open-action-items">
-<h2>Open Action Items (RPN > 16)</h2>
-<table><thead><tr>
-      <th>FM ID</th><th>SF</th><th>Failure Mode</th><th>RPN</th><th>Required Action</th>
-    </tr></thead><tbody>
-<tr><td>FM-05-02</td><td>SF-05</td><td>Video latency > 1 s</td><td style="background:#f8d7da;text-align:center;font-weight:bold">27</td><td>Reduce resolution/framerate; operator uses safety observer for proximity</td></tr>
-<tr><td>FM-01-01</td><td>SF-01</td><td>No /cmd_vel received</td><td style="background:#f8d7da;text-align:center;font-weight:bold">24</td><td>1-second watchdog (LF-01.4) zeroes velocity</td></tr>
-<tr><td>FM-03-04</td><td>SF-03</td><td>Voltage reading drift</td><td style="background:#f8d7da;text-align:center;font-weight:bold">18</td><td>Factory calibration; compare against multimeter at setup</td></tr>
-<tr><td>FM-04-02</td><td>SF-04</td><td>Odometry divergence</td><td style="background:#f8d7da;text-align:center;font-weight:bold">18</td><td>Expected on loose terrain; operator uses visual navigation</td></tr>
-<tr><td>FM-04-03</td><td>SF-04</td><td>Telemetry topic drops</td><td style="background:#f8d7da;text-align:center;font-weight:bold">18</td><td>Reduce camera resolution; prioritise /battery_state and /diagnostics</td></tr>
-<tr><td>FM-04-04</td><td>SF-04</td><td>IMU attitude filter divergence</td><td style="background:#f8d7da;text-align:center;font-weight:bold">18</td><td>Allow 5-second warm-up on level surface before traverse</td></tr>
-</tbody></table>
-</section>
+    <!-- Action Items -->
+    <div class="tab-pane fade" id="tab-actions">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Open Action Items — RPN &gt; 16</h5>
+          <p class="text-muted" style="font-size:.83rem">
+            These failure modes have a Risk Priority Number above the acceptable threshold
+            and require specific mitigation actions before the rover is considered safe to operate.
+          </p>
+          <div id="actions-wrap"></div>
+        </div>
+      </div>
+    </div>
 
+  </div><!-- /.tab-content -->
 
-<footer>
-  Generated by <code>generate_safety_report.py</code> — OSR MBSE safety analysis pipeline.<br>
-  Emulates ATICA4Capella FHA + FMEA outputs (ANZEN Engineering) without requiring Capella.<br>
-  Source data: <code>hazard_log.md</code>, <code>fmea_system.md</code>, <code>fta.md</code>,
-  <code>scenarios/</code>
-</footer>
+  <footer class="text-muted mt-4 mb-3 pt-3 border-top" style="font-size:.78rem">
+    Generated by <code>generate_safety_report.py</code> — OSR MBSE safety analysis pipeline.<br>
+    Emulates ATICA4Capella FHA + FMEA outputs without requiring Capella.<br>
+    Source data: <code>hazard_log.md</code> · <code>fmea_system.md</code> · <code>fta.md</code> · <code>scenarios/</code>
+  </footer>
+</div>
 
+<script>window.__OSR_SAFETY__ = {
+  "hazards": [
+    {
+      "id": "H-01",
+      "title": "Motor Overcurrent / Fire",
+      "cause": "Wheel stall, obstacle jam, short circuit",
+      "effect": "Motor winding damage, PCB damage, potential fire",
+      "s_pre": 5,
+      "l_pre": 3,
+      "s_post": 5,
+      "l_post": 1,
+      "risk_pre": 15,
+      "risk_post": 5,
+      "mitigation": "SF-06.1 monitors per-motor current; safe stop at ≥ 10 A (100 ms response); in-line fuse",
+      "reqs": [
+        "REQ-SF-06-01",
+        "REQ-SF-06-02"
+      ],
+      "scenario": "motor_stall"
+    },
+    {
+      "id": "H-02",
+      "title": "Tip / Rollover",
+      "cause": "Excessive slope, dynamic cornering at speed",
+      "effect": "Rover inversion, hardware damage, injury risk",
+      "s_pre": 5,
+      "l_pre": 2,
+      "s_post": 5,
+      "l_post": 1,
+      "risk_pre": 10,
+      "risk_post": 5,
+      "mitigation": "SF-06.3 monitors BNO055 IMU roll/pitch; safe stop at ≥ 35° within 100 ms",
+      "reqs": [
+        "REQ-SF-06-04",
+        "REQ-SF-06-05"
+      ],
+      "scenario": "tilt_risk"
+    },
+    {
+      "id": "H-03",
+      "title": "Battery Over-Discharge",
+      "cause": "Extended mission without monitoring, sensor failure",
+      "effect": "LiPo cell damage, reduced lifespan, potential venting",
+      "s_pre": 4,
+      "l_pre": 3,
+      "s_post": 4,
+      "l_post": 1,
+      "risk_pre": 12,
+      "risk_post": 4,
+      "mitigation": "SF-06.2 warns at < 11.0 V and stops at < 10.5 V; INA219 voltage monitoring at ≥ 1 Hz",
+      "reqs": [
+        "REQ-SF-06-03"
+      ],
+      "scenario": "battery_low"
+    },
+    {
+      "id": "H-04",
+      "title": "Runaway After Comm Loss",
+      "cause": "Wi-Fi dropout while rover is moving",
+      "effect": "Uncontrolled motion, collision with persons or objects",
+      "s_pre": 5,
+      "l_pre": 3,
+      "s_post": 5,
+      "l_post": 1,
+      "risk_pre": 15,
+      "risk_post": 5,
+      "mitigation": "SF-01 1-second watchdog (LF-01.4) zeros velocity on /cmd_vel timeout",
+      "reqs": [
+        "REQ-SF-01-02"
+      ],
+      "scenario": "comm_loss"
+    },
+    {
+      "id": "H-05",
+      "title": "Collision / Unintended Motion",
+      "cause": "Operator error, malformed command, velocity bypass",
+      "effect": "Impact with obstacles, persons, or terrain",
+      "s_pre": 4,
+      "l_pre": 3,
+      "s_post": 4,
+      "l_post": 2,
+      "risk_pre": 12,
+      "risk_post": 8,
+      "mitigation": "Velocity clamped to ±0.4 m/s; NaN/Inf discard; safety observer protocol",
+      "reqs": [
+        "REQ-SF-01-03",
+        "REQ-LC-02-03"
+      ],
+      "scenario": null
+    },
+    {
+      "id": "H-06",
+      "title": "Electrical Short Circuit",
+      "cause": "Wiring fault, connector failure, PCB fault",
+      "effect": "PCB damage, fire, loss of rover",
+      "s_pre": 5,
+      "l_pre": 2,
+      "s_post": 5,
+      "l_post": 1,
+      "risk_pre": 10,
+      "risk_post": 5,
+      "mitigation": "In-line fuse ≤ 30 A between battery and PCB; positive-retention connectors",
+      "reqs": [
+        "REQ-OA-033-03"
+      ],
+      "scenario": null
+    },
+    {
+      "id": "H-07",
+      "title": "Payload Overcurrent",
+      "cause": "Payload draws more than rated power (> 2 A)",
+      "effect": "PCB rail damage, system reset, payload damage",
+      "s_pre": 3,
+      "l_pre": 3,
+      "s_post": 3,
+      "l_post": 1,
+      "risk_pre": 9,
+      "risk_post": 3,
+      "mitigation": "SF-07.2 monitors payload current via INA219; software cutoff at configurable limit",
+      "reqs": [
+        "REQ-SF-07-02"
+      ],
+      "scenario": null
+    },
+    {
+      "id": "H-08",
+      "title": "Software Crash / Node Failure",
+      "cause": "Python exception, OOM, kernel panic",
+      "effect": "Loss of control, no safe stop if fault monitor crashes",
+      "s_pre": 4,
+      "l_pre": 3,
+      "s_post": 4,
+      "l_post": 2,
+      "risk_pre": 12,
+      "risk_post": 8,
+      "mitigation": "ROS node respawn; hardware RoboClaw serial timeout as independent backup",
+      "reqs": [
+        "REQ-OA-023-02"
+      ],
+      "scenario": null
+    },
+    {
+      "id": "H-09",
+      "title": "Structural Failure",
+      "cause": "Excessive load, manufacturing defect, fatigue",
+      "effect": "Collapse during traverse, hardware damage",
+      "s_pre": 4,
+      "l_pre": 1,
+      "s_post": 4,
+      "l_post": 1,
+      "risk_pre": 4,
+      "risk_post": 4,
+      "mitigation": "Mechanical design with safety factor; post-session hardware inspection",
+      "reqs": [
+        "REQ-OA-022-01"
+      ],
+      "scenario": null
+    },
+    {
+      "id": "H-10",
+      "title": "LiPo Thermal Runaway",
+      "cause": "Overcharge, cell damage, puncture during transport",
+      "effect": "Fire, toxic gas release",
+      "s_pre": 5,
+      "l_pre": 1,
+      "s_post": 5,
+      "l_post": 1,
+      "risk_pre": 5,
+      "risk_post": 5,
+      "mitigation": "Charge at ≤ 1C; never charge unattended; store in LiPo-safe bag; no in-rover charging",
+      "reqs": [
+        "REQ-OA-021-01",
+        "REQ-OA-021-02",
+        "REQ-OA-021-03"
+      ],
+      "scenario": null
+    }
+  ],
+  "fmea": [
+    {
+      "id": "FM-01-01",
+      "sf": "SF-01",
+      "mode": "No /cmd_vel received",
+      "effect": "Rover continues last velocity command",
+      "cause": "Wi-Fi dropout, ground station crash",
+      "s": 4,
+      "o": 3,
+      "d": 2,
+      "rpn": 24,
+      "hazard": "H-04",
+      "mitigation": "1-second watchdog (LF-01.4) zeroes velocity"
+    },
+    {
+      "id": "FM-01-02",
+      "sf": "SF-01",
+      "mode": "Malformed Twist message",
+      "effect": "Incorrect motion command executed",
+      "cause": "Corrupted packet, ROS serialisation bug",
+      "s": 3,
+      "o": 2,
+      "d": 2,
+      "rpn": 12,
+      "hazard": "H-05",
+      "mitigation": "NaN/Inf check (LF-01.2) discards bad packets"
+    },
+    {
+      "id": "FM-01-03",
+      "sf": "SF-01",
+      "mode": "Velocity limit bypass",
+      "effect": "Rover moves faster than safe speed",
+      "cause": "Software bug in clamping logic",
+      "s": 3,
+      "o": 1,
+      "d": 3,
+      "rpn": 9,
+      "hazard": "H-05",
+      "mitigation": "Unit test for LF-01.3 clamp at all boundary values"
+    },
+    {
+      "id": "FM-01-04",
+      "sf": "SF-01",
+      "mode": "Watchdog timer fails to fire",
+      "effect": "No auto-halt on comm loss",
+      "cause": "Software bug, rospy.Timer crash",
+      "s": 4,
+      "o": 2,
+      "d": 2,
+      "rpn": 16,
+      "hazard": "H-04 H-08",
+      "mitigation": "Node supervisor restarts; hardware RoboClaw timeout"
+    },
+    {
+      "id": "FM-02-01",
+      "sf": "SF-02",
+      "mode": "Kinematic model error",
+      "effect": "Wrong wheel speed ratio — drift or spin",
+      "cause": "Geometry parameter mismatch",
+      "s": 2,
+      "o": 2,
+      "d": 3,
+      "rpn": 12,
+      "hazard": "H-05",
+      "mitigation": "Calibration test during build"
+    },
+    {
+      "id": "FM-02-02",
+      "sf": "SF-02",
+      "mode": "RoboClaw USB serial loss",
+      "effect": "Motors stop abruptly",
+      "cause": "Cable fault, USB enumeration failure",
+      "s": 3,
+      "o": 2,
+      "d": 1,
+      "rpn": 6,
+      "hazard": "H-09",
+      "mitigation": "RoboClaw has built-in serial timeout; logs error"
+    },
+    {
+      "id": "FM-02-03",
+      "sf": "SF-02",
+      "mode": "PCA9685 I2C lockup",
+      "effect": "Steering servos freeze at last angle",
+      "cause": "I2C bus contention, power glitch",
+      "s": 2,
+      "o": 2,
+      "d": 2,
+      "rpn": 8,
+      "hazard": "—",
+      "mitigation": "I2C bus reset; servo mechanically safe at any fixed angle"
+    },
+    {
+      "id": "FM-02-04",
+      "sf": "SF-02",
+      "mode": "Single wheel encoder failure",
+      "effect": "Odometry drift",
+      "cause": "Encoder damaged; cable break",
+      "s": 2,
+      "o": 2,
+      "d": 3,
+      "rpn": 12,
+      "hazard": "—",
+      "mitigation": "/diagnostics flags abnormal encoder delta"
+    },
+    {
+      "id": "FM-03-01",
+      "sf": "SF-03",
+      "mode": "INA219 I2C failure",
+      "effect": "No battery monitoring",
+      "cause": "Hardware fault, I2C address conflict",
+      "s": 4,
+      "o": 2,
+      "d": 1,
+      "rpn": 8,
+      "hazard": "H-03",
+      "mitigation": "/diagnostics reports sensor loss; operator should halt"
+    },
+    {
+      "id": "FM-03-02",
+      "sf": "SF-03",
+      "mode": "Buck converter failure",
+      "effect": "Loss of 5V logic rail",
+      "cause": "Component failure, overcurrent",
+      "s": 4,
+      "o": 1,
+      "d": 1,
+      "rpn": 4,
+      "hazard": "H-08",
+      "mitigation": "PCB fuse; RPi and RoboClaws lose power simultaneously (safe)"
+    },
+    {
+      "id": "FM-03-03",
+      "sf": "SF-03",
+      "mode": "Fuse blow (expected)",
+      "effect": "Circuit protected, motor stops",
+      "cause": "Overcurrent event",
+      "s": 2,
+      "o": 2,
+      "d": 1,
+      "rpn": 4,
+      "hazard": "H-01",
+      "mitigation": "Replace fuse; inspect wiring before resuming"
+    },
+    {
+      "id": "FM-03-04",
+      "sf": "SF-03",
+      "mode": "Voltage reading drift",
+      "effect": "Wrong SoC estimate",
+      "cause": "INA219 calibration error",
+      "s": 3,
+      "o": 2,
+      "d": 3,
+      "rpn": 18,
+      "hazard": "H-03",
+      "mitigation": "Factory calibration; compare against multimeter at setup"
+    },
+    {
+      "id": "FM-04-01",
+      "sf": "SF-04",
+      "mode": "BNO055 IMU data freeze",
+      "effect": "Stale orientation; tilt detection fails",
+      "cause": "I2C lockup, sensor reset",
+      "s": 4,
+      "o": 2,
+      "d": 2,
+      "rpn": 16,
+      "hazard": "H-02",
+      "mitigation": "Timestamp staleness check in LC-05; alert on /diagnostics"
+    },
+    {
+      "id": "FM-04-02",
+      "sf": "SF-04",
+      "mode": "Odometry divergence",
+      "effect": "Position estimate unusable",
+      "cause": "Wheel slip on loose surface",
+      "s": 2,
+      "o": 3,
+      "d": 3,
+      "rpn": 18,
+      "hazard": "—",
+      "mitigation": "Expected on loose terrain; operator uses visual navigation"
+    },
+    {
+      "id": "FM-04-03",
+      "sf": "SF-04",
+      "mode": "Telemetry topic drops",
+      "effect": "Operator loses state visibility",
+      "cause": "Wi-Fi bandwidth saturation",
+      "s": 3,
+      "o": 3,
+      "d": 2,
+      "rpn": 18,
+      "hazard": "H-04",
+      "mitigation": "Reduce camera resolution; prioritise /battery_state and /diagnostics"
+    },
+    {
+      "id": "FM-04-04",
+      "sf": "SF-04",
+      "mode": "IMU attitude filter divergence",
+      "effect": "Roll/pitch estimate wrong",
+      "cause": "Gyro bias at startup",
+      "s": 3,
+      "o": 2,
+      "d": 3,
+      "rpn": 18,
+      "hazard": "H-02",
+      "mitigation": "Allow 5-second warm-up on level surface before traverse"
+    },
+    {
+      "id": "FM-05-01",
+      "sf": "SF-05",
+      "mode": "Camera node crash",
+      "effect": "No video feed",
+      "cause": "USB disconnect, raspicam error",
+      "s": 2,
+      "o": 3,
+      "d": 1,
+      "rpn": 6,
+      "hazard": "H-05",
+      "mitigation": "Optional component; mission continues without video"
+    },
+    {
+      "id": "FM-05-02",
+      "sf": "SF-05",
+      "mode": "Video latency > 1 s",
+      "effect": "Operator makes control decisions on stale image",
+      "cause": "Network congestion",
+      "s": 3,
+      "o": 3,
+      "d": 3,
+      "rpn": 27,
+      "hazard": "H-05",
+      "mitigation": "Reduce resolution/framerate; operator uses safety observer for proximity"
+    },
+    {
+      "id": "FM-06-01",
+      "sf": "SF-06",
+      "mode": "Fault monitor node crash",
+      "effect": "No automated safe stop",
+      "cause": "Python exception, OOM",
+      "s": 5,
+      "o": 2,
+      "d": 1,
+      "rpn": 10,
+      "hazard": "H-01 H-02 H-04",
+      "mitigation": "respawn=true in ROS launch; hardware RoboClaw timeout as backup"
+    },
+    {
+      "id": "FM-06-02",
+      "sf": "SF-06",
+      "mode": "Current threshold too high",
+      "effect": "Motor damage before shutdown",
+      "cause": "Threshold misconfigured",
+      "s": 4,
+      "o": 1,
+      "d": 2,
+      "rpn": 8,
+      "hazard": "H-01",
+      "mitigation": "Threshold validated against motor stall current spec (≤ 10 A)"
+    },
+    {
+      "id": "FM-06-03",
+      "sf": "SF-06",
+      "mode": "Tilt threshold wrong axis",
+      "effect": "Tip not detected",
+      "cause": "IMU mounted with wrong orientation",
+      "s": 4,
+      "o": 2,
+      "d": 2,
+      "rpn": 16,
+      "hazard": "H-02",
+      "mitigation": "Tilt calibration test during setup; verify correct roll/pitch mapping"
+    },
+    {
+      "id": "FM-06-04",
+      "sf": "SF-06",
+      "mode": "Safe stop doesn't zero all motors",
+      "effect": "Residual motion after fault",
+      "cause": "Bug in SF-06.4 implementation",
+      "s": 4,
+      "o": 1,
+      "d": 2,
+      "rpn": 8,
+      "hazard": "H-01 H-02",
+      "mitigation": "Integration test: verify all 3 RoboClaws receive 0 setpoint"
+    },
+    {
+      "id": "FM-06-05",
+      "sf": "SF-06",
+      "mode": "Latched halt not clearable",
+      "effect": "Rover stuck after false positive",
+      "cause": "Software bug in latch logic",
+      "s": 2,
+      "o": 2,
+      "d": 2,
+      "rpn": 8,
+      "hazard": "—",
+      "mitigation": "Operator can restart fault_node via SSH"
+    },
+    {
+      "id": "FM-07-01",
+      "sf": "SF-07",
+      "mode": "Payload power switch failure",
+      "effect": "Payload always on or always off",
+      "cause": "GPIO driver bug, transistor failure",
+      "s": 2,
+      "o": 1,
+      "d": 2,
+      "rpn": 4,
+      "hazard": "H-07",
+      "mitigation": "Manual power disconnect available; software toggle verified in test"
+    },
+    {
+      "id": "FM-07-02",
+      "sf": "SF-07",
+      "mode": "Payload overcurrent",
+      "effect": "PCB rail damage, system reset",
+      "cause": "Payload hardware fault",
+      "s": 3,
+      "o": 2,
+      "d": 2,
+      "rpn": 12,
+      "hazard": "H-07",
+      "mitigation": "SF-07.2 cuts rail at configurable limit (default 2 A)"
+    },
+    {
+      "id": "FM-07-03",
+      "sf": "SF-07",
+      "mode": "I2C bus contention from payload",
+      "effect": "LC-04 sensor reads corrupted",
+      "cause": "Payload device using same I2C address",
+      "s": 3,
+      "o": 2,
+      "d": 2,
+      "rpn": 12,
+      "hazard": "H-08",
+      "mitigation": "Reserve I2C addresses in payload interface spec"
+    },
+    {
+      "id": "FM-07-04",
+      "sf": "SF-07",
+      "mode": "Payload pulls voltage rail low",
+      "effect": "RPi undervoltage, system reset",
+      "cause": "Payload draws excessive current on 5V rail",
+      "s": 4,
+      "o": 2,
+      "d": 1,
+      "rpn": 8,
+      "hazard": "H-08",
+      "mitigation": "Separate payload 5V rail from RPi 5V rail on PCB"
+    }
+  ],
+  "fta": [
+    {
+      "hazard_id": "H-01",
+      "hazard_name": "Motor Overcurrent",
+      "cut_sets": [
+        [
+          "Current sensor fails",
+          "Software threshold not reached"
+        ],
+        [
+          "RoboClaw ignores setpoint = 0",
+          "SF-06.4 bug"
+        ],
+        [
+          "In-line fuse rated too high"
+        ]
+      ]
+    },
+    {
+      "hazard_id": "H-02",
+      "hazard_name": "Tip / Rollover",
+      "cut_sets": [
+        [
+          "IMU data frozen",
+          "Staleness check bypassed"
+        ],
+        [
+          "IMU orientation wrong",
+          "Tilt threshold on wrong axis"
+        ],
+        [
+          "Rover speed > 0.4 m/s",
+          "Velocity clamp bypassed"
+        ]
+      ]
+    },
+    {
+      "hazard_id": "H-04",
+      "hazard_name": "Runaway After Comm Loss",
+      "cut_sets": [
+        [
+          "Wi-Fi drops",
+          "Watchdog timer fails"
+        ],
+        [
+          "Wi-Fi drops",
+          "RoboClaw serial timeout not configured"
+        ]
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "nominal_traverse",
+      "name": "Nominal Traverse",
+      "covers": [
+        "H-05"
+      ]
+    },
+    {
+      "id": "battery_low",
+      "name": "Battery Low",
+      "covers": [
+        "H-03",
+        "H-10"
+      ]
+    },
+    {
+      "id": "tilt_risk",
+      "name": "Tilt Risk",
+      "covers": [
+        "H-02"
+      ]
+    },
+    {
+      "id": "motor_stall",
+      "name": "Motor Stall",
+      "covers": [
+        "H-01"
+      ]
+    },
+    {
+      "id": "comm_loss",
+      "name": "Comm Loss",
+      "covers": [
+        "H-04"
+      ]
+    }
+  ],
+  "all_hazard_ids": [
+    "H-01",
+    "H-02",
+    "H-03",
+    "H-04",
+    "H-05",
+    "H-06",
+    "H-07",
+    "H-08",
+    "H-09",
+    "H-10"
+  ]
+};</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>const D = window.__OSR_SAFETY__;
+
+// ── colour helpers ────────────────────────────────────────────────────────
+function riskClass(s, l) {
+  const r = s * l;
+  return r > 9 ? 'risk-high' : r > 4 ? 'risk-med' : 'risk-low';
+}
+function riskLabel(s, l) {
+  const r = s * l;
+  return (r > 9 ? 'High' : r > 4 ? 'Medium' : 'Low') + ' (' + r + ')';
+}
+function rpnClass(rpn) { return rpn > 16 ? 'rpn-high' : rpn > 8 ? 'rpn-med' : 'rpn-low'; }
+function riskBg(s, l) {
+  const tbl = {
+    '1,1':'#d4edda','1,2':'#d4edda','1,3':'#fff3cd','1,4':'#fff3cd','1,5':'#f8d7da',
+    '2,1':'#d4edda','2,2':'#d4edda','2,3':'#fff3cd','2,4':'#f8d7da','2,5':'#f8d7da',
+    '3,1':'#d4edda','3,2':'#fff3cd','3,3':'#fff3cd','3,4':'#f8d7da','3,5':'#f8d7da',
+    '4,1':'#fff3cd','4,2':'#fff3cd','4,3':'#f8d7da','4,4':'#f8d7da','4,5':'#f8d7da',
+    '5,1':'#fff3cd','5,2':'#f8d7da','5,3':'#f8d7da','5,4':'#f8d7da','5,5':'#f8d7da',
+  };
+  return tbl[s+','+l] || '#fff';
+}
+
+// ── risk matrix ──────────────────────────────────────────────────────────
+let matrixFilter = null;  // {s, l} or null
+
+function renderMatrix() {
+  // group hazards by post-mitigation (s_post, l_post)
+  const cells = {};
+  D.hazards.forEach(h => {
+    const key = h.s_post + ',' + h.l_post;
+    (cells[key] = cells[key] || []).push(h.id);
+  });
+
+  let html = '<table class="risk-matrix"><thead><tr>';
+  html += '<th>L \ S</th>';
+  for (let s = 1; s <= 5; s++) html += '<th>S=' + s + '</th>';
+  html += '</tr></thead><tbody>';
+  for (let l = 5; l >= 1; l--) {
+    html += '<tr><th>L=' + l + '</th>';
+    for (let s = 1; s <= 5; s++) {
+      const key = s + ',' + l;
+      const bg  = riskBg(s, l);
+      const ids = cells[key] || [];
+      const sel = matrixFilter && matrixFilter.s === s && matrixFilter.l === l ? ' selected' : '';
+      const badges = ids.map(id => '<span class="rm-badge">' + id + '</span>').join('');
+      html += '<td style="background:' + bg + '" class="' + sel + '" data-s="' + s + '" data-l="' + l + '">'
+            + badges + '</td>';
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  html += '<p class="mt-2 text-muted" style="font-size:.8rem">Click a cell to filter the Hazard Log. Click again to clear.</p>';
+  document.getElementById('rm-container').innerHTML = html;
+
+  document.querySelectorAll('.risk-matrix td[data-s]').forEach(td => {
+    td.addEventListener('click', () => {
+      const s = +td.dataset.s, l = +td.dataset.l;
+      matrixFilter = (matrixFilter && matrixFilter.s === s && matrixFilter.l === l) ? null : {s, l};
+      renderMatrix();
+      renderHazards();
+    });
+  });
+}
+
+// ── hazard log ────────────────────────────────────────────────────────────
+let hazardRiskFilter = 'all';
+
+function renderHazards() {
+  let data = D.hazards;
+  if (matrixFilter) {
+    data = data.filter(h => h.s_post === matrixFilter.s && h.l_post === matrixFilter.l);
+  }
+  if (hazardRiskFilter !== 'all') {
+    data = data.filter(h => {
+      const r = h.risk_post;
+      if (hazardRiskFilter === 'high')   return r > 9;
+      if (hazardRiskFilter === 'medium') return r > 4 && r <= 9;
+      if (hazardRiskFilter === 'low')    return r <= 4;
+    });
+  }
+
+  const filterNote = matrixFilter
+    ? '<div class="alert alert-info py-1 px-2 mb-2" style="font-size:.82rem">⬅ Filtered by Risk Matrix: S=' + matrixFilter.s + ' L=' + matrixFilter.l + ' &nbsp; <a href="#" id="clear-matrix-filter">Clear</a></div>'
+    : '';
+
+  let rows = data.map(h => {
+    const reqs = h.reqs.map(r => '<code>' + r + '</code>').join(' ');
+    return '<tr>'
+      + '<td><strong>' + h.id + '</strong></td>'
+      + '<td>' + h.title + '</td>'
+      + '<td>' + h.cause + '</td>'
+      + '<td>' + h.effect + '</td>'
+      + '<td class="' + riskClass(h.s_pre, h.l_pre) + '">' + riskLabel(h.s_pre, h.l_pre) + '</td>'
+      + '<td class="' + riskClass(h.s_post, h.l_post) + '">' + riskLabel(h.s_post, h.l_post) + '</td>'
+      + '<td>' + h.mitigation + '</td>'
+      + '<td>' + reqs + '</td>'
+      + '<td>' + (h.scenario || '—') + '</td>'
+      + '</tr>';
+  }).join('');
+
+  document.getElementById('hazard-table-wrap').innerHTML = filterNote +
+    '<table class="table table-sm table-bordered table-hover"><thead class="table-dark"><tr>'
+    + '<th>ID</th><th>Title</th><th>Cause</th><th>Effect</th>'
+    + '<th>Pre-Risk</th><th>Post-Risk</th><th>Mitigation</th><th>Requirements</th><th>Scenario</th>'
+    + '</tr></thead><tbody>' + rows + '</tbody></table>'
+    + '<p class="text-muted" style="font-size:.8rem">Showing ' + data.length + ' of ' + D.hazards.length + ' hazards.</p>';
+
+  const cl = document.getElementById('clear-matrix-filter');
+  if (cl) cl.addEventListener('click', e => { e.preventDefault(); matrixFilter = null; renderMatrix(); renderHazards(); });
+}
+
+// ── FMEA table ────────────────────────────────────────────────────────────
+let fmeaSort  = {col: 'rpn', dir: -1};
+let fmeaSF    = 'all';
+let fmeaMinRPN = 0;
+
+function renderFMEA() {
+  let data = D.fmea
+    .filter(f => fmeaSF === 'all' || f.sf === fmeaSF)
+    .filter(f => f.rpn >= fmeaMinRPN);
+
+  data = [...data].sort((a, b) => {
+    let va = a[fmeaSort.col], vb = b[fmeaSort.col];
+    if (typeof va === 'string') va = va.toLowerCase(), vb = vb.toLowerCase();
+    return fmeaSort.dir * (va < vb ? -1 : va > vb ? 1 : 0);
+  });
+
+  const cols = [
+    {key:'id', label:'ID'}, {key:'sf', label:'SF'},
+    {key:'mode', label:'Failure Mode'}, {key:'effect', label:'Effect'},
+    {key:'cause', label:'Cause'},
+    {key:'s', label:'S'}, {key:'o', label:'O'}, {key:'d', label:'D'},
+    {key:'rpn', label:'RPN'}, {key:'hazard', label:'Hazard'},
+    {key:'mitigation', label:'Mitigation'},
+  ];
+
+  const thead = cols.map(c => {
+    let cls = '';
+    if (fmeaSort.col === c.key) cls = fmeaSort.dir === 1 ? 'asc' : 'desc';
+    return '<th class="' + cls + '" data-col="' + c.key + '">' + c.label + '</th>';
+  }).join('');
+
+  const tbody = data.map(f =>
+    '<tr>'
+    + '<td>' + f.id + '</td>'
+    + '<td><span class="badge bg-secondary">' + f.sf + '</span></td>'
+    + '<td>' + f.mode + '</td>'
+    + '<td>' + f.effect + '</td>'
+    + '<td>' + f.cause + '</td>'
+    + '<td class="text-center">' + f.s + '</td>'
+    + '<td class="text-center">' + f.o + '</td>'
+    + '<td class="text-center">' + f.d + '</td>'
+    + '<td class="text-center ' + rpnClass(f.rpn) + '">' + f.rpn + '</td>'
+    + '<td>' + f.hazard + '</td>'
+    + '<td>' + f.mitigation + '</td>'
+    + '</tr>'
+  ).join('');
+
+  document.getElementById('fmea-wrap').innerHTML =
+    '<table class="table table-sm table-bordered sortable"><thead class="table-dark"><tr>'
+    + thead + '</tr></thead><tbody>' + tbody + '</tbody></table>'
+    + '<p class="text-muted" style="font-size:.8rem">Showing ' + data.length + ' of ' + D.fmea.length
+    + ' failure modes. Click a column header to sort.</p>';
+
+  document.querySelectorAll('#fmea-wrap th[data-col]').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.col;
+      fmeaSort = {col, dir: fmeaSort.col === col ? -fmeaSort.dir : -1};
+      renderFMEA();
+    });
+  });
+}
+
+// ── FTA ──────────────────────────────────────────────────────────────────
+function renderFTA() {
+  const html = D.fta.map(ft => {
+    const sets = ft.cut_sets.map((cs, i) => {
+      const events = cs.map(e => '<span class="cut-event">' + e + '</span>').join('<span class="and-gate">AND</span>');
+      return '<div class="cut-set"><strong>CS-' + (i+1) + ':</strong> ' + events + '</div>';
+    }).join('');
+    return '<div class="mb-4"><h5>' + ft.hazard_id + ' — ' + ft.hazard_name + '</h5>'
+      + '<p class="text-muted mb-2" style="font-size:.83rem">Minimal cut sets — each is sufficient to cause the top event:</p>'
+      + sets + '</div>';
+  }).join('<hr>');
+  document.getElementById('fta-wrap').innerHTML = html;
+}
+
+// ── Scenario coverage ─────────────────────────────────────────────────────
+function renderScenarios() {
+  const ids = D.all_hazard_ids;
+  const head = '<tr><th>Scenario</th>' + ids.map(h => '<th>' + h + '</th>').join('') + '</tr>';
+  const rows = D.scenarios.map(sc => {
+    const cells = ids.map(h =>
+      sc.covers.includes(h)
+        ? '<td class="cov-yes">✓</td>'
+        : '<td class="cov-no">·</td>'
+    ).join('');
+    return '<tr><td><strong>' + sc.name + '</strong><br><code style="font-size:.75rem">' + sc.id + '.scenic</code></td>' + cells + '</tr>';
+  }).join('');
+  document.getElementById('scenarios-wrap').innerHTML =
+    '<div style="overflow-x:auto"><table class="table table-sm table-bordered">'
+    + '<thead class="table-dark">' + head + '</thead><tbody>' + rows + '</tbody></table></div>'
+    + '<p class="text-muted" style="font-size:.8rem">✓ = scenario explicitly exercises this hazard's boundary conditions.</p>';
+}
+
+// ── Action items ──────────────────────────────────────────────────────────
+function renderActions() {
+  const high = D.fmea.filter(f => f.rpn > 16).sort((a,b) => b.rpn - a.rpn);
+  const rows = high.map(f =>
+    '<tr><td>' + f.id + '</td>'
+    + '<td><span class="badge bg-secondary">' + f.sf + '</span></td>'
+    + '<td>' + f.mode + '</td>'
+    + '<td class="text-center ' + rpnClass(f.rpn) + '">' + f.rpn + '</td>'
+    + '<td>' + f.mitigation + '</td></tr>'
+  ).join('');
+  document.getElementById('actions-wrap').innerHTML =
+    '<table class="table table-sm table-bordered"><thead class="table-dark"><tr>'
+    + '<th>FM ID</th><th>SF</th><th>Failure Mode</th><th>RPN</th><th>Required Action</th>'
+    + '</tr></thead><tbody>' + rows + '</tbody></table>'
+    + '<p class="text-muted" style="font-size:.8rem">' + high.length + ' failure modes with RPN > 16.</p>';
+}
+
+// ── Summary stats ─────────────────────────────────────────────────────────
+function renderSummary() {
+  const hHigh = D.hazards.filter(h => h.risk_post > 9).length;
+  const hMed  = D.hazards.filter(h => h.risk_post > 4 && h.risk_post <= 9).length;
+  const hLow  = D.hazards.filter(h => h.risk_post <= 4).length;
+  const fHigh = D.fmea.filter(f => f.rpn > 16).length;
+  document.getElementById('stat-hazards').textContent  = D.hazards.length;
+  document.getElementById('stat-h-high').textContent   = hHigh;
+  document.getElementById('stat-h-med').textContent    = hMed;
+  document.getElementById('stat-h-low').textContent    = hLow;
+  document.getElementById('stat-fm').textContent       = D.fmea.length;
+  document.getElementById('stat-fm-high').textContent  = fHigh;
+  document.getElementById('stat-fta').textContent      = D.fta.length;
+  document.getElementById('stat-scen').textContent     = D.scenarios.length;
+}
+
+// ── Filter wiring ─────────────────────────────────────────────────────────
+function wireFilters() {
+  // hazard risk filter
+  document.querySelectorAll('[data-hrisk]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      hazardRiskFilter = btn.dataset.hrisk;
+      document.querySelectorAll('[data-hrisk]').forEach(b =>
+        b.classList.toggle('active', b === btn));
+      renderHazards();
+    });
+  });
+
+  // FMEA SF filter
+  const sfSel = document.getElementById('sf-select');
+  if (sfSel) sfSel.addEventListener('change', () => { fmeaSF = sfSel.value; renderFMEA(); });
+
+  // FMEA min RPN
+  const rpnSlider = document.getElementById('rpn-min');
+  const rpnVal    = document.getElementById('rpn-val');
+  if (rpnSlider) {
+    rpnSlider.addEventListener('input', () => {
+      fmeaMinRPN = +rpnSlider.value;
+      rpnVal.textContent = fmeaMinRPN;
+      renderFMEA();
+    });
+  }
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  renderSummary();
+  renderMatrix();
+  renderHazards();
+  renderFMEA();
+  renderFTA();
+  renderScenarios();
+  renderActions();
+  wireFilters();
+});
+</script>
 </body>
 </html>
