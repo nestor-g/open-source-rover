@@ -875,7 +875,7 @@ function renderSweep() {
     + '<thead class="table-dark"><tr><th>#</th><th>Hazard%</th><th>Violated</th>' + pHdrs + '</tr></thead>'
     + '<tbody>' + topRows + '</tbody></table></div>'
     + '</div></div>'
-    + `<p class="text-muted" style="font-size:.76rem">LHS sweep — ${SW.sweep.n_actual} samples, seed=${SW.sweep.seed}. `
+    + `<p class="text-muted" style="font-size:.76rem">${SW.sweep.method.toUpperCase()} sweep — ${SW.sweep.n_actual} samples, seed=${SW.sweep.seed}. `
     + 'Sweeps the full physical OA/OE range (not just the Scenic sampled range). '
     + '<a href="scenarios/sweep/" class="text-decoration-none">Generated .scenic files →</a></p>';
 
